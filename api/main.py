@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import time
-from typing import Optional, Literal, List
+from typing import Optional, Literal, List, Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Depends
@@ -119,6 +120,22 @@ def generate_phrase() -> str:
         "Six slick slimy snails, under thirteen bridges",
     ]
     return secrets.choice(phrases)
+
+
+def parse_embedding(voice_embedding: Any) -> list:
+    """
+    Parse voice embedding from storage format to list.
+    Handles both string (JSON) and list formats.
+    
+    Args:
+        voice_embedding: Embedding in string or list format
+        
+    Returns:
+        list: Parsed embedding as list of floats
+    """
+    if isinstance(voice_embedding, str):
+        return json.loads(voice_embedding)
+    return voice_embedding
 
 
 # -------------------------
@@ -266,8 +283,7 @@ def verify_challenge(challenge_id: str, req: VerifyChallengeRequest, tenant: Ten
         test_embedding = create_embedding(audio_bytes)
         
         # Layer 2: Speaker verification
-        import json
-        enrolled_embedding = json.loads(user.voice_embedding) if isinstance(user.voice_embedding, str) else user.voice_embedding
+        enrolled_embedding = parse_embedding(user.voice_embedding)
         layer2_result = compare_embeddings(enrolled_embedding, test_embedding)
         
         # Layer 3: AI detection
@@ -308,9 +324,9 @@ def verify_challenge(challenge_id: str, req: VerifyChallengeRequest, tenant: Ten
         
         # Calculate overall confidence
         confidences = [layer2_result['confidence']]
-        if layer3_result['confidence']:
+        if layer3_result.get('confidence') is not None:
             confidences.append(layer3_result['confidence'])
-        if layer4_result and not layer4_result.get('skipped') and layer4_result.get('match_confidence'):
+        if layer4_result and not layer4_result.get('skipped') and layer4_result.get('match_confidence') is not None:
             confidences.append(layer4_result['match_confidence'])
         
         import numpy as np

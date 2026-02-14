@@ -123,8 +123,12 @@ def _detect_with_heuristic(audio_path: str) -> dict:
     avg_flatness = float(np.mean(spectral_flatness))
     
     # Convert to AI probability (higher flatness = more likely AI)
-    # This is a rough heuristic
-    ai_score = min(avg_flatness * 2, 1.0)
+    # Spectral flatness ranges from 0-1, we multiply by 2 to spread the distribution
+    # and cap at 1.0. This is a rough heuristic where:
+    # - avg_flatness ~0.0-0.3: typical human voice (low AI probability)
+    # - avg_flatness ~0.5+: more uniform spectrum, possibly AI (high AI probability)
+    FLATNESS_MULTIPLIER = 2.0
+    ai_score = min(avg_flatness * FLATNESS_MULTIPLIER, 1.0)
     confidence = abs(ai_score - 0.5) * 2
     
     return {
