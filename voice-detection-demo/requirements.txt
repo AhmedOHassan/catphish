@@ -1,0 +1,21 @@
+# Core ML libraries
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Speaker verification (Layer 2)
+resemblyzer>=0.1.1.dev0
+
+# Audio processing
+librosa>=0.10.0
+soundfile>=0.12.0
+
+# Gemini API (Layer 4)
+google-generativeai>=0.3.0
+
+# Speech recognition
+SpeechRecognition>=3.10.0
+
+# Utilities
+python-dotenv>=1.0.0
