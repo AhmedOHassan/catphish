@@ -1,0 +1,13 @@
+services:
+  valkey:
+    image: valkey/valkey:latest
+    container_name: catphish-valkey
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey_data:/data
+    restart: unless-stopped
+
+volumes:
+  valkey_data:
+
