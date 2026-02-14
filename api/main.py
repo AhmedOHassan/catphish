@@ -1,0 +1,276 @@
+from __future__ import annotations
+
+import os
+import secrets
+import time
+from typing import Optional, Literal, List
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, Header, HTTPException, Depends
+from pydantic import BaseModel, Field
+
+from db.valkey_store import ValkeyStore, Tenant
+
+load_dotenv()  # loads .env from repo root when running from repo root
+
+APP_NAME = "catphish-api"
+API_VERSION = "v1"
+
+# ---- config (safe defaults for hackathon) ----
+VALKEY_HOST = os.getenv("VALKEY_HOST", "127.0.0.1")
+VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
+
+DEFAULT_TTL_SECONDS = int(os.getenv("CHALLENGE_TTL_SECONDS", "120"))
+RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "5"))
+
+# Global store (simple MVP)
+store = ValkeyStore(host=VALKEY_HOST, port=VALKEY_PORT)
+
+app = FastAPI(title=APP_NAME, version="0.1.0")
+
+
+# -------------------------
+# Models
+# -------------------------
+class EnrollmentRequest(BaseModel):
+    external_user_id: str = Field(..., min_length=1, max_length=200)
+    audio_sample: str = Field(..., description="base64 encoded audio for MVP demo")
+    metadata: Optional[dict] = None
+
+
+class EnrollmentResponse(BaseModel):
+    tenant_id: str
+    external_user_id: str
+    enrolled: bool
+    embedding_version: str
+    created_at: str
+
+
+class CreateChallengeRequest(BaseModel):
+    external_user_id: str = Field(..., min_length=1, max_length=200)
+    purpose: Optional[str] = Field(default="login")
+    ttl_seconds: Optional[int] = Field(default=DEFAULT_TTL_SECONDS, ge=30, le=180)
+
+
+class CreateChallengeResponse(BaseModel):
+    challenge_id: str
+    external_user_id: str
+    phrase: str
+    expires_in_seconds: int
+    challenge_url: str
+
+
+VerifyStatus = Literal["verified", "failed", "expired", "replay_blocked", "rate_limited"]
+
+
+class VerifyChallengeRequest(BaseModel):
+    external_user_id: str = Field(..., min_length=1, max_length=200)
+    audio_sample: str = Field(..., description="base64 encoded audio")
+    client_timestamp: Optional[str] = None
+
+
+class VerifyChallengeResponse(BaseModel):
+    challenge_id: str
+    external_user_id: str
+    status: VerifyStatus
+    confidence_score: float
+    risk_level: Literal["low", "medium", "high"]
+    reasons: List[str]
+
+
+class HealthResponse(BaseModel):
+    ok: bool
+    valkey: str
+    timestamp: int
+
+
+# -------------------------
+# Helpers
+# -------------------------
+def now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def require_tenant(x_catphish_key: Optional[str] = Header(default=None, alias="X-Catphish-Key")) -> Tenant:
+    if not x_catphish_key:
+        raise HTTPException(status_code=401, detail="Missing X-Catphish-Key")
+
+    tenant = store.get_tenant_by_api_key(x_catphish_key.strip())
+    if not tenant or not tenant.tenant_id:
+        raise HTTPException(status_code=401, detail="Invalid tenant API key")
+
+    return tenant
+
+
+def generate_phrase() -> str:
+    # MVP: fixed pool of tongue-twister-ish phrases (fast + deterministic)
+    phrases = [
+        "Unique New York, blue alpaca seven",
+        "Red leather, yellow leather, nine times fast",
+        "Toy boat, toy boat, toy boat, sixteen",
+        "She sells seashells by the seashore, twice",
+        "Six slick slimy snails, under thirteen bridges",
+    ]
+    return secrets.choice(phrases)
+
+
+def stub_compute_embedding(audio_b64: str) -> list:
+    """
+    MVP placeholder. Real system would compute a voice embedding.
+    Here we just create a tiny deterministic 'embedding' based on input length.
+    """
+    n = len(audio_b64)
+    return [round((n % 97) / 97.0, 4), round((n % 53) / 53.0, 4), round((n % 31) / 31.0, 4)]
+
+
+def stub_verify_human(audio_b64: str, phrase: str) -> tuple[bool, float, list]:
+    """
+    MVP placeholder for "AI spoof detection / liveness".
+    For demo: treat very short audio as suspicious.
+    """
+    reasons = []
+    if len(audio_b64) < 2000:
+        return False, 0.25, ["audio_too_short_suspicious"]
+    reasons.append("timing_ok")
+
+    # In the real implementation: ASR transcript must match phrase + liveness model
+    # For MVP: assume phrase match OK if audio is long enough.
+    reasons.append("phrase_match_ok")
+
+    return True, 0.92, reasons
+
+
+# -------------------------
+# Routes
+# -------------------------
+@app.get("/health", response_model=HealthResponse)
+def health():
+    try:
+        pong = store.r.ping()
+        return HealthResponse(ok=bool(pong), valkey=f"{VALKEY_HOST}:{VALKEY_PORT}", timestamp=int(time.time()))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Valkey health check failed: {e}")
+
+
+@app.post(f"/{API_VERSION}/enroll", response_model=EnrollmentResponse)
+def enroll(req: EnrollmentRequest, tenant: Tenant = Depends(require_tenant)):
+    # Compute and store "embedding" (stubbed)
+    embedding = stub_compute_embedding(req.audio_sample)
+
+    user = store.upsert_user_embedding(
+        tenant_id=tenant.tenant_id,
+        external_user_id=req.external_user_id,
+        voice_embedding=embedding,
+        created_at_iso=now_iso(),
+    )
+
+    return EnrollmentResponse(
+        tenant_id=tenant.tenant_id,
+        external_user_id=req.external_user_id,
+        enrolled=True,
+        embedding_version="v1",
+        created_at=user.created_at or now_iso(),
+    )
+
+
+@app.post(f"/{API_VERSION}/challenges", response_model=CreateChallengeResponse, status_code=201)
+def create_challenge(req: CreateChallengeRequest, tenant: Tenant = Depends(require_tenant)):
+    # Require user to be enrolled
+    user = store.get_user(tenant.tenant_id, req.external_user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not enrolled")
+
+    challenge_id = "ch_" + secrets.token_hex(4)
+    phrase = generate_phrase()
+    ttl = int(req.ttl_seconds or DEFAULT_TTL_SECONDS)
+
+    store.create_challenge(
+        tenant_id=tenant.tenant_id,
+        challenge_id=challenge_id,
+        external_user_id=req.external_user_id,
+        phrase=phrase,
+        ttl_seconds=ttl,
+    )
+
+    # In demo, this is your hosted challenge UI route (frontend will implement)
+    base_url = os.getenv("PUBLIC_BASE_URL", "https://catphish.tech")
+    challenge_url = f"{base_url}/challenge/{challenge_id}"
+
+    return CreateChallengeResponse(
+        challenge_id=challenge_id,
+        external_user_id=req.external_user_id,
+        phrase=phrase,
+        expires_in_seconds=ttl,
+        challenge_url=challenge_url,
+    )
+
+
+@app.post(f"/{API_VERSION}/challenges" + "/{challenge_id}/verify", response_model=VerifyChallengeResponse)
+def verify_challenge(challenge_id: str, req: VerifyChallengeRequest, tenant: Tenant = Depends(require_tenant)):
+    # Rate limit first (cheap)
+    allowed, count, ttl = store.check_rate_limit(
+        tenant_id=tenant.tenant_id,
+        external_user_id=req.external_user_id,
+        limit=RATE_LIMIT_PER_MINUTE,
+        window_seconds=60,
+    )
+    if not allowed:
+        return VerifyChallengeResponse(
+            challenge_id=challenge_id,
+            external_user_id=req.external_user_id,
+            status="rate_limited",
+            confidence_score=0.0,
+            risk_level="high",
+            reasons=[f"rate_limited count={count} ttl={ttl}"],
+        )
+
+    # Anti-replay lock
+    if not store.claim_challenge_lock(tenant.tenant_id, challenge_id):
+        return VerifyChallengeResponse(
+            challenge_id=challenge_id,
+            external_user_id=req.external_user_id,
+            status="replay_blocked",
+            confidence_score=0.0,
+            risk_level="high",
+            reasons=["challenge_lock_exists_replay_blocked"],
+        )
+
+    ch = store.get_challenge(tenant.tenant_id, challenge_id)
+    if not ch:
+        return VerifyChallengeResponse(
+            challenge_id=challenge_id,
+            external_user_id=req.external_user_id,
+            status="expired",
+            confidence_score=0.0,
+            risk_level="high",
+            reasons=["challenge_missing_or_expired"],
+        )
+
+    # Ensure caller is verifying for the same user
+    if ch.external_user_id != req.external_user_id:
+        # treat as failed (could also be 400)
+        return VerifyChallengeResponse(
+            challenge_id=challenge_id,
+            external_user_id=req.external_user_id,
+            status="failed",
+            confidence_score=0.0,
+            risk_level="high",
+            reasons=["external_user_id_mismatch"],
+        )
+
+    ok, conf, reasons = stub_verify_human(req.audio_sample, ch.phrase)
+    status: VerifyStatus = "verified" if ok else "failed"
+    risk = "low" if ok else "high"
+
+    # Optional: store status while TTL remains
+    store.set_challenge_status(tenant.tenant_id, challenge_id, status)
+
+    return VerifyChallengeResponse(
+        challenge_id=challenge_id,
+        external_user_id=req.external_user_id,
+        status=status,
+        confidence_score=float(conf),
+        risk_level=risk,
+        reasons=reasons,
+    )
+
