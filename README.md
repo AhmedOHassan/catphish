@@ -2,6 +2,14 @@
 
 ## Quickstart (Valkey)
 
+## One-command setup
+
+```bash
+./scripts/setup.sh
+```
+
+## To run Valkey locally only
+
 ## 1) Start Valkey
 ```bash
 docker compose up -d
