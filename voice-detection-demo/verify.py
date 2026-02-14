@@ -240,9 +240,9 @@ def verify_comprehension(audio_path, expected_phrase, layer2_result, layer3_resu
     
     # Call Gemini for analysis
     try:
-        import google.generativeai as genai
+        from google import genai
         
-        genai.configure(api_key=api_key)
+        client = genai.Client(api_key=api_key)
         
         # Build prompt
         prompt = f"""Analyze this voice authentication attempt.
@@ -274,13 +274,15 @@ Return JSON:
 }}"""
         
         print("Analyzing with Gemini...")
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        response = model.generate_content(
-            prompt,
-            generation_config={'response_mime_type': 'application/json'}
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config={'response_mime_type': 'application/json'}
         )
         
-        result = json.loads(response.text)
+        # Extract JSON from response
+        response_text = response.text if hasattr(response, 'text') else str(response)
+        result = json.loads(response_text)
         result['transcript'] = transcript
         
         # Print results
