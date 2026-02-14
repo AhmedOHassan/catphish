@@ -21,3 +21,14 @@ uvicorn==0.40.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0
+
+# Voice authentication dependencies
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+resemblyzer>=0.1.1.dev0
+librosa>=0.10.0
+soundfile>=0.12.0
+google-generativeai>=0.3.0
+SpeechRecognition>=3.10.0
