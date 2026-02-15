@@ -285,27 +285,39 @@ def test_full_pipeline():
             print(f"❌ Test profile not found")
             return False
         
-        # Test multiple scenarios with expected outcomes
+        # Test multiple scenarios with expected outcomes for each layer
         test_scenarios = [
             {
                 "dir": "legitimate",
                 "phrase": "toy boat toy boat toy boat 3 free throws",
                 "expected_verdict": "VERIFIED",
-                "description": "Should PASS all layers - legitimate speaker with correct phrase"
+                "expected_layer2": "MATCH",
+                "expected_layer3": "HUMAN",
+                "expected_layer4": "ALLOW",
+                "description": "Legitimate speaker with correct phrase"
             },
             {
                 "dir": "different_speaker",
                 "phrase": None,
                 "expected_verdict": "BLOCKED",
-                "description": "Should FAIL Layer 2 - different speaker (no phrase check)"
+                "expected_layer2": "NO_MATCH",
+                "expected_layer3": "HUMAN",
+                "expected_layer4": None,
+                "description": "Different speaker (should fail Layer 2)"
             },
             {
                 "dir": "ai_voice",
                 "phrase": None,
                 "expected_verdict": "BLOCKED",
-                "description": "Should FAIL Layer 3 - AI-generated voice (no phrase check)"
+                "expected_layer2": "MATCH",  # AI voice clones can match
+                "expected_layer3": "AI",
+                "expected_layer4": None,
+                "description": "AI-generated voice (should fail Layer 3)"
             },
         ]
+        
+        # Store results for summary
+        results_summary = []
         
         all_passed = True
         for scenario in test_scenarios:
@@ -323,10 +335,16 @@ def test_full_pipeline():
             
             print(f"\n{'='*60}")
             print(f"Scenario: {scenario['dir']} ({audio_files[0].name})")
-            print(f"Expected: {scenario['description']}")
-            if scenario['phrase']:
-                print(f"Phrase: '{scenario['phrase']}'")
+            print(f"Description: {scenario['description']}")
             print(f"{'='*60}")
+            print(f"\n📋 Expected Outcomes:")
+            print(f"   Layer 2 (Speaker): {scenario['expected_layer2']}")
+            print(f"   Layer 3 (AI Detection): {scenario['expected_layer3']}")
+            if scenario['expected_layer4']:
+                print(f"   Layer 4 (Comprehension): {scenario['expected_layer4']}")
+                print(f"   Phrase: '{scenario['phrase']}'")
+            print(f"   Final Verdict: {scenario['expected_verdict']}")
+            print()
             
             result = verify_voice(
                 audio_path,
@@ -334,16 +352,80 @@ def test_full_pipeline():
                 expected_phrase=scenario['phrase']
             )
             
-            verdict_match = result['verdict'] == scenario['expected_verdict']
-            status = "✅" if verdict_match else "❌"
+            # Extract actual results
+            actual_layer2 = "MATCH" if result['layer2']['match'] else "NO_MATCH"
+            actual_layer3 = "AI" if result['layer3']['is_ai'] else "HUMAN"
+            actual_layer4 = None
+            if result.get('layer4') and not result['layer4'].get('skipped'):
+                actual_layer4 = result['layer4'].get('recommendation', 'UNKNOWN')
             
-            print(f"\n{status} Result: {result['verdict']} (Expected: {scenario['expected_verdict']})")
+            # Check matches
+            layer2_match = (actual_layer2 == scenario['expected_layer2'])
+            layer3_match = (actual_layer3 == scenario['expected_layer3'])
+            layer4_match = (scenario['expected_layer4'] is None) or (actual_layer4 == scenario['expected_layer4'])
+            verdict_match = (result['verdict'] == scenario['expected_verdict'])
+            
+            # Store for summary
+            results_summary.append({
+                'scenario': scenario['dir'],
+                'expected': {
+                    'layer2': scenario['expected_layer2'],
+                    'layer3': scenario['expected_layer3'],
+                    'layer4': scenario['expected_layer4'],
+                    'verdict': scenario['expected_verdict']
+                },
+                'actual': {
+                    'layer2': actual_layer2,
+                    'layer3': actual_layer3,
+                    'layer4': actual_layer4,
+                    'verdict': result['verdict']
+                },
+                'matches': {
+                    'layer2': layer2_match,
+                    'layer3': layer3_match,
+                    'layer4': layer4_match,
+                    'verdict': verdict_match
+                }
+            })
+            
+            status = "✅" if verdict_match else "❌"
+            print(f"\n{status} Final Verdict: {result['verdict']} (Expected: {scenario['expected_verdict']})")
             if result.get('failed_layers'):
                 print(f"   Failed layers: {', '.join(f'Layer {l}' for l in result['failed_layers'])}")
             
             if not verdict_match:
                 all_passed = False
-                print(f"   ⚠️  Verdict mismatch!")
+        
+        # Print summary table
+        print("\n" + "="*70)
+        print(" 📊 PIPELINE RESULTS SUMMARY")
+        print("="*70)
+        print()
+        
+        for summary in results_summary:
+            print(f"Scenario: {summary['scenario'].upper()}")
+            print("-" * 70)
+            
+            # Layer 2
+            l2_status = "✅" if summary['matches']['layer2'] else "❌"
+            print(f"  Layer 2 (Speaker):      {l2_status} {summary['actual']['layer2']:10} (Expected: {summary['expected']['layer2']})")
+            
+            # Layer 3
+            l3_status = "✅" if summary['matches']['layer3'] else "❌"
+            print(f"  Layer 3 (AI Detection): {l3_status} {summary['actual']['layer3']:10} (Expected: {summary['expected']['layer3']})")
+            
+            # Layer 4
+            if summary['expected']['layer4']:
+                l4_status = "✅" if summary['matches']['layer4'] else "❌"
+                l4_actual = summary['actual']['layer4'] or 'SKIPPED'
+                print(f"  Layer 4 (Comprehension): {l4_status} {l4_actual:10} (Expected: {summary['expected']['layer4']})")
+            else:
+                print(f"  Layer 4 (Comprehension): ⊘  NOT_TESTED")
+            
+            # Final verdict
+            v_status = "✅" if summary['matches']['verdict'] else "❌"
+            print(f"  Final Verdict:          {v_status} {summary['actual']['verdict']:10} (Expected: {summary['expected']['verdict']})")
+            print()
         
         return all_passed
         
