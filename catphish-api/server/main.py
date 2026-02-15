@@ -29,7 +29,18 @@ from voice.phrase_generator import generate_verification_phrase, generate_enroll
 from voice.audio_utils import base64_to_bytes
 from solana_audit import log_verification_attempt
 
-load_dotenv()
+# Load .env from repo root (parent of catphish-api/server/)
+_env_candidates = [
+    Path(__file__).resolve().parent / ".env",            # catphish-api/server/.env
+    Path(__file__).resolve().parent.parent / ".env",      # catphish-api/.env
+    Path(__file__).resolve().parent.parent.parent / ".env",# repo root .env
+]
+for _env_path in _env_candidates:
+    if _env_path.exists():
+        load_dotenv(_env_path)
+        break
+else:
+    load_dotenv()  # fallback: search cwd upward
 
 # ── Logging setup ──
 logging.basicConfig(
