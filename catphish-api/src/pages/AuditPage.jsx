@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './AuditPage.css';
 
-const DEMO_API_KEY = 'demo_key_123';
+// TODO: In production, this should come from secure configuration or user authentication
+const DEMO_API_KEY = import.meta.env.VITE_CATPHISH_API_KEY || 'demo_key_123';
 const API_BASE = import.meta.env.VITE_CATPHISH_API_URL || '';
 
 function AuditPage() {
@@ -131,8 +132,8 @@ function AuditPage() {
                 </tr>
               </thead>
               <tbody>
-                {events.map((event, idx) => (
-                  <tr key={idx} className="audit-row">
+                {events.map((event) => (
+                  <tr key={event.challenge_id || `${event.external_user_id}-${event.timestamp}`} className="audit-row">
                     <td className="audit-cell-user">
                       <code>{event.external_user_id}</code>
                     </td>
@@ -146,7 +147,7 @@ function AuditPage() {
                       </span>
                     </td>
                     <td className="audit-cell-confidence">
-                      {(event.confidence_score * 100).toFixed(1)}%
+                      {((event.confidence_score || 0) * 100).toFixed(1)}%
                     </td>
                     <td className="audit-cell-hash">
                       {event.solana_tx_hash ? (
@@ -156,10 +157,10 @@ function AuditPage() {
                           </code>
                           <button
                             className="audit-btn audit-btn-copy"
-                            onClick={() => copyToClipboard(event.solana_tx_hash, idx)}
+                            onClick={() => copyToClipboard(event.solana_tx_hash, event.challenge_id || event.timestamp)}
                             title="Copy full hash"
                           >
-                            {copied === idx ? '✓' : '📋'}
+                            {copied === (event.challenge_id || event.timestamp) ? '✓' : '📋'}
                           </button>
                           <a
                             href={getSolanaExplorerUrl(event.solana_tx_hash)}

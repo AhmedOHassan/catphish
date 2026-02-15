@@ -362,8 +362,8 @@ class ValkeyStore:
 
         # Add to tenant's audit index (sorted set by timestamp)
         index_key = self.k_audit_index(tenant_id)
-        # Store as "event_id:external_user_id" to make filtering easier
-        self.r.zadd(index_key, {f"{event_id}:{external_user_id}": timestamp})
+        # Store as "event_id|external_user_id" using pipe delimiter to avoid conflicts
+        self.r.zadd(index_key, {f"{event_id}|{external_user_id}": timestamp})
 
         return AuditEvent(
             event_id=event_id,
@@ -394,8 +394,12 @@ class ValkeyStore:
         
         events = []
         for entry in event_entries:
-            # entry format: "event_id:external_user_id"
-            parts = entry.split(":", 1)
+            # entry format: "event_id|external_user_id" (pipe delimiter)
+            # Ensure entry is a string (decode if bytes)
+            if isinstance(entry, bytes):
+                entry = entry.decode('utf-8')
+            
+            parts = entry.split("|", 1)
             if len(parts) != 2:
                 continue
             

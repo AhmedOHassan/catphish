@@ -332,11 +332,14 @@ def get_audit_events(
     Get audit trail events for a tenant, optionally filtered by user.
     Returns events in reverse chronological order (newest first).
     """
-    # Validate limit
-    if limit is not None:
-        limit = max(1, min(int(limit), 500))  # Cap at 500
-    else:
-        limit = 100
+    # Validate and sanitize limit
+    try:
+        if limit is not None:
+            limit = max(1, min(int(limit), 500))  # Cap at 500
+        else:
+            limit = 100
+    except (ValueError, TypeError):
+        limit = 100  # Use default on invalid input
     
     # Get events from store
     events = store.get_audit_events(
