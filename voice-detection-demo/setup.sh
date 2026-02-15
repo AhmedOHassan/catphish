@@ -64,15 +64,18 @@ echo ""
 # Step 5: Setup AASIST model (Layer 3 AI Detection)
 echo "Step 5/6: Setting up AASIST model..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-mkdir -p models/aasist/models/weights
 
 if [ ! -d "models/aasist/.git" ]; then
     echo "Cloning AASIST repository..."
+    mkdir -p models
     git clone https://github.com/clovaai/aasist.git models/aasist
     echo "✅ AASIST repository cloned"
 else
     echo "✅ AASIST repository exists"
 fi
+
+# Ensure weights directory exists
+mkdir -p models/aasist/models/weights
 
 if [ -f "models/aasist/models/weights/AASIST.pth" ]; then
     echo "✅ AASIST weights found ($(du -h models/aasist/models/weights/AASIST.pth | cut -f1))"
