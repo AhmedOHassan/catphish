@@ -106,6 +106,9 @@ export function getCurrentUser() {
  */
 export function logout() {
   localStorage.removeItem(CURRENT_USER_KEY);
+  // Also clear Catphish external_user_id to prevent ID reuse across different accounts
+  localStorage.removeItem('external_user_id');
+  localStorage.removeItem('catphish_return_url');
 }
 
 /**

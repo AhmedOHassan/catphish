@@ -1,15 +1,58 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentUser, logout } from '../services/authService';
+import { getCurrentUser, logout, setCurrentUser } from '../services/authService';
+import { getVerificationResult } from '../services/catphishService';
 import Navbar from '../components/Navbar';
 
 function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState(null);
 
   useEffect(() => {
-    // Check if user is logged in
+    // Check for verification result from catphish-api redirect
+    const verificationResult = getVerificationResult();
+    
+    if (verificationResult) {
+      // User just returned from verification
+      const pendingUser = localStorage.getItem('pending_login_user');
+      
+      if (verificationResult.verified && pendingUser) {
+        // Verification successful - complete the login
+        const user = JSON.parse(pendingUser);
+        setCurrentUser(user);
+        setUser(user);
+        localStorage.removeItem('pending_login_user');
+        
+        setVerificationMessage({
+          type: 'success',
+          text: `✅ Voice verification successful! Session ID: ${verificationResult.session_id}`
+        });
+      } else if (!verificationResult.verified) {
+        // Verification failed
+        localStorage.removeItem('pending_login_user');
+        setVerificationMessage({
+          type: 'error',
+          text: '❌ Voice verification failed. Please try again.'
+        });
+        
+        // Redirect back to login after 3 seconds
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+      }
+      
+      // Clear URL parameters after showing message
+      setTimeout(() => {
+        window.history.replaceState({}, '', '/dashboard');
+        setVerificationMessage(null);
+      }, 5000);
+      
+      return;
+    }
+    
+    // Check if user is logged in (normal dashboard access)
     const currentUser = getCurrentUser();
     if (!currentUser) {
       navigate('/');
@@ -50,6 +93,13 @@ function Dashboard() {
           <h1>Welcome back, {user.email}</h1>
           <p className="welcome-subtitle">Your account overview</p>
         </div>
+
+        {/* Verification Message */}
+        {verificationMessage && (
+          <div className={`verification-banner ${verificationMessage.type}`}>
+            {verificationMessage.text}
+          </div>
+        )}
 
         {/* Balance Card */}
         <div className="balance-card">

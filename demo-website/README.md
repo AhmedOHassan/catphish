@@ -28,7 +28,7 @@ This is a **DEMO ONLY** website. It uses:
    npm run dev
    ```
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+3. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## How It Works
   
