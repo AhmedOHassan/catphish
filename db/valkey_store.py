@@ -34,6 +34,15 @@ class Challenge:
     status: str  # "pending" | "verified" | "failed" (optional)
 
 
+@dataclass(frozen=True)
+class VerificationSession:
+    session_id: str
+    tenant_id: str
+    external_user_id: str
+    return_url: Optional[str]
+    created_at: int
+
+
 class ValkeyStore:
     """
     Valkey-only DB layer for Catphish MVP.
@@ -69,6 +78,10 @@ class ValkeyStore:
     @staticmethod
     def k_rate_limit(tenant_id: str, external_user_id: str) -> str:
         return f"rl:{tenant_id}:{external_user_id}"
+
+    @staticmethod
+    def k_verification_session(session_id: str) -> str:
+        return f"verification_session:{session_id}"
 
     # -------------------------
     # Tenant ops
@@ -232,4 +245,58 @@ class ValkeyStore:
 
         allowed = int(count) <= int(limit)
         return allowed, int(count), int(ttl)
+
+    # -------------------------
+    # Verification session ops
+    # -------------------------
+    def create_verification_session(
+        self,
+        session_id: str,
+        tenant_id: str,
+        external_user_id: str,
+        return_url: Optional[str] = None,
+        ttl_seconds: int = 600,
+    ) -> VerificationSession:
+        """
+        Creates a verification session that stores user_id and return_url.
+        The session_id is passed in the URL instead of user_id.
+        """
+        now = int(time.time())
+        
+        key = self.k_verification_session(session_id)
+        self.r.hset(
+            key,
+            mapping={
+                "tenant_id": tenant_id,
+                "external_user_id": external_user_id,
+                "return_url": return_url or "",
+                "created_at": str(now),
+            },
+        )
+        self.r.expire(key, ttl_seconds)
+        
+        return VerificationSession(
+            session_id=session_id,
+            tenant_id=tenant_id,
+            external_user_id=external_user_id,
+            return_url=return_url,
+            created_at=now,
+        )
+    
+    def get_verification_session(self, session_id: str) -> Optional[VerificationSession]:
+        """
+        Retrieves a verification session by session_id.
+        """
+        key = self.k_verification_session(session_id)
+        data = self.r.hgetall(key)
+        if not data:
+            return None
+        
+        return VerificationSession(
+            session_id=session_id,
+            tenant_id=data.get("tenant_id", ""),
+            external_user_id=data.get("external_user_id", ""),
+            return_url=data.get("return_url") or None,
+            created_at=int(data.get("created_at", "0")),
+        )
 

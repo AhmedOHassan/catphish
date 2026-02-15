@@ -7,8 +7,42 @@
  */
 
 // Load environment variables
-const API_URL = import.meta.env.VITE_CATPHISH_API_URL;
-const API_KEY = import.meta.env.VITE_CATPHISH_API_KEY;
+const API_URL = import.meta.env.VITE_CATPHISH_API_URL || 'http://localhost:8000';
+const API_KEY = import.meta.env.VITE_CATPHISH_API_KEY || 'demo_key_12345';
+
+/**
+ * Get session information by session_id
+ * @param {string} session_id - The session ID from the URL
+ * @returns {Promise<{external_user_id: string, return_url: string}>}
+ */
+export async function getSessionInfo(session_id) {
+  console.log("🔍 Fetching session info for:", session_id);
+  
+  try {
+    const response = await fetch(`${API_URL}/v1/verification-sessions/${session_id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Catphish-Key': API_KEY,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch session: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("✅ Session info retrieved:", data);
+    
+    return {
+      external_user_id: data.external_user_id,
+      return_url: data.return_url,
+    };
+  } catch (error) {
+    console.error("❌ Error fetching session info:", error);
+    throw error;
+  }
+}
 
 /**
  * Generate a random verification phrase
