@@ -1,24 +1,32 @@
-import { useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 const tabs = [
-  { id: 'product', label: 'Product' },
-  { id: 'documentation', label: 'Documentation' },
-  { id: 'team', label: 'Team' },
+  { id: 'product', label: 'Product', path: '/' },
+  { id: 'documentation', label: 'Documentation', path: '/documentation' },
+  { id: 'team', label: 'Team', path: '/team' },
+  { id: 'privacy', label: 'Privacy Policy', path: '/privacy' },
 ]
 
 function Navbar() {
-  const [activeTab, setActiveTab] = useState('product')
+  const location = useLocation()
+
+  const isActive = (path) => {
+    if (path === '/') {
+      return location.pathname === '/'
+    }
+    return location.pathname.startsWith(path)
+  }
 
   return (
     <nav className="navbar">
       {tabs.map((tab) => (
-        <button
+        <NavLink
           key={tab.id}
-          className={`navbar-tab ${activeTab === tab.id ? 'active' : ''}`}
-          onClick={() => setActiveTab(tab.id)}
+          to={tab.path}
+          className={`navbar-tab ${isActive(tab.path) ? 'active' : ''}`}
         >
-          {activeTab === tab.id && (
+          {isActive(tab.path) && (
             <motion.div
               className="navbar-tab-bg"
               layoutId="activeTab"
@@ -27,7 +35,7 @@ function Navbar() {
             />
           )}
           <span className="navbar-tab-label">{tab.label}</span>
-        </button>
+        </NavLink>
       ))}
     </nav>
   )

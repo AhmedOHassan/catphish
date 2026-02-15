@@ -1,24 +1,10 @@
 import { motion } from 'framer-motion'
-import catphishLogo from '../assets/catphish_logo.png'
-import Navbar from './Navbar'
+import Header from './Header'
 
 function Hero() {
   return (
     <section className="hero">
-      {/* Header with Logo and Navbar */}
-      <motion.header
-        className="header"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-      >
-        <div className="logo-container">
-          <img src={catphishLogo} alt="Catphish Logo" className="logo-image" />
-          <span className="logo-text">Catphish</span>
-        </div>
-        <Navbar />
-        <div className="header-spacer" />
-      </motion.header>
+      <Header />
 
       {/* Hero Content */}
       <div className="hero-content">
@@ -53,6 +39,14 @@ function Hero() {
         transition={{ duration: 0.7, delay: 0.7 }}
       >
         <button className="cta-button">Get Started</button>
+        <a 
+          href="https://github.com/AhmedOHassan/catphish" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="cta-button cta-button-dark"
+        >
+          Github
+        </a>
       </motion.div>
       </div>
     </section>
