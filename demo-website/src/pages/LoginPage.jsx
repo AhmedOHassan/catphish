@@ -18,6 +18,10 @@ function LoginPage() {
   // Catphish popup state
   const [showPopup, setShowPopup] = useState(false);
   const [userId, setUserId] = useState(null);
+  
+  // API configuration from environment variables
+  const apiBaseUrl = import.meta.env.VITE_CATPHISH_API_URL || 'http://127.0.0.1:8000';
+  const apiKey = import.meta.env.VITE_CATPHISH_API_KEY || 'demo_key_123';
 
   useEffect(() => {
     // Show success message if redirected from signup
@@ -146,8 +150,8 @@ function LoginPage() {
         isOpen={showPopup}
         onClose={handlePopupClose}
         externalUserId={userId}
-        apiBaseUrl="http://127.0.0.1:8000"
-        apiKey="demo_key_123"
+        apiBaseUrl={apiBaseUrl}
+        apiKey={apiKey}
       />
     </div>
   );

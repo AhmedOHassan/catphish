@@ -33,9 +33,26 @@ export async function requestMicrophonePermission() {
 export function recordAudio(stream, maxDurationMs = 5000) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'audio/webm;codecs=opus',
-    });
+    
+    // Try to find a supported mimeType
+    let mimeType = 'audio/webm;codecs=opus';
+    const supportedTypes = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/mp4',
+    ];
+    
+    for (const type of supportedTypes) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        mimeType = type;
+        break;
+      }
+    }
+    
+    console.log('Using mimeType:', mimeType);
+    
+    const mediaRecorder = new MediaRecorder(stream, { mimeType });
 
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
@@ -44,7 +61,7 @@ export function recordAudio(stream, maxDurationMs = 5000) {
     };
 
     mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const blob = new Blob(chunks, { type: mimeType });
       console.log('✅ Recording stopped, blob size:', blob.size);
       resolve(blob);
     };

@@ -68,6 +68,36 @@ function CatphishPopup({
     RESULT: 6,
   };
 
+  // Add CSS animations on mount
+  useEffect(() => {
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'catphish-popup-styles';
+    styleSheet.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
+      }
+    `;
+    
+    // Only add if not already present
+    if (!document.getElementById('catphish-popup-styles')) {
+      document.head.appendChild(styleSheet);
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      const existingStyle = document.getElementById('catphish-popup-styles');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
+
   // Clean up on unmount
   useEffect(() => {
     return () => {
@@ -752,22 +782,5 @@ const styles = {
     marginBottom: '15px',
   },
 };
-
-// Add CSS animations
-if (typeof document !== 'undefined') {
-  const styleSheet = document.createElement('style');
-  styleSheet.textContent = `
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.2); }
-    }
-  `;
-  document.head.appendChild(styleSheet);
-}
 
 export default CatphishPopup;
