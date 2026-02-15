@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { login, setCurrentUser } from '../services/authService';
-import { createVerificationSession } from '../services/catphishService';
 import Navbar from '../components/Navbar';
+// Import CatphishPopup component from catphish-api
+import CatphishPopup from '../../../catphish-api/src/components/CatphishPopup';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -13,6 +14,10 @@ function LoginPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  
+  // Catphish popup state
+  const [showPopup, setShowPopup] = useState(false);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     // Show success message if redirected from signup
@@ -43,26 +48,32 @@ function LoginPage() {
       return;
     }
 
-    // Login successful, now call Catphish API
+    // Login successful, now show Catphish popup
     setLoading(false);
-    setVerifying(true);
+    
+    console.log('🔐 Login successful, opening Catphish verification popup...');
+    
+    // Save user data temporarily
+    localStorage.setItem('pending_login_user', JSON.stringify(result.user));
+    
+    // Open the popup
+    setUserId(result.user.id);
+    setShowPopup(true);
+  };
 
-    try {
-      console.log('🔐 Login successful, calling Catphish API...');
-      
-      // Save user data temporarily before redirect
-      localStorage.setItem('pending_login_user', JSON.stringify(result.user));
-      
-      // This will redirect to catphish-api, so code after it won't execute
-      await createVerificationSession(result.user.id);
-      
-      // Note: Code below only runs if redirect fails
-      setError('Failed to redirect to verification');
-      setVerifying(false);
-    } catch (err) {
-      console.error('Error during verification:', err);
-      setError('An error occurred during verification');
-      setVerifying(false);
+  // Handle popup close - called when verification completes or user cancels
+  const handlePopupClose = () => {
+    setShowPopup(false);
+    setVerifying(false);
+    
+    // Check if verification was successful (we can add a callback prop to get result)
+    // For now, we'll navigate to dashboard after popup closes
+    const pendingUser = localStorage.getItem('pending_login_user');
+    if (pendingUser) {
+      const user = JSON.parse(pendingUser);
+      setCurrentUser(user);
+      localStorage.removeItem('pending_login_user');
+      navigate('/dashboard');
     }
   };
 
@@ -129,6 +140,15 @@ function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Catphish Popup */}
+      <CatphishPopup
+        isOpen={showPopup}
+        onClose={handlePopupClose}
+        externalUserId={userId}
+        apiBaseUrl="http://127.0.0.1:8000"
+        apiKey="demo_key_123"
+      />
     </div>
   );
 }
