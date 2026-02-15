@@ -113,12 +113,14 @@ class AASISTDetector:
             # Model returns (last_hidden, output)
             _, output = self.model(audio_tensor, Freq_aug=False)
             
-            # Output is [batch, 2] logits for [bonafide, spoof]
-            # Apply softmax to get probabilities
+            # Output is [batch, 2] logits where:
+            #   index 0 = spoof score
+            #   index 1 = bonafide score
+            # (trained with bonafide=1, spoof=0 labels)
             probs = torch.softmax(output, dim=1)
             
-            # Probability that audio is spoofed (AI-generated)
-            ai_probability = probs[0, 1].item()
+            # Probability that audio is spoofed (AI-generated) = index 0
+            ai_probability = probs[0, 0].item()
         
         # Determine if AI (threshold at 0.5)
         is_ai = ai_probability > 0.5
