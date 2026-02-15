@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import VerificationPage from './pages/VerificationPage';
 import SuccessPage from './pages/SuccessPage';
 import FailurePage from './pages/FailurePage';
+import AuditPage from './pages/AuditPage';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/verify" element={<VerificationPage />} />
         <Route path="/success" element={<SuccessPage />} />
         <Route path="/failure" element={<FailurePage />} />
+        <Route path="/audit" element={<AuditPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

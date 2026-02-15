@@ -1,0 +1,322 @@
+/* Audit Trail Page - Dark Noir Theme */
+.audit-page {
+  min-height: 100vh;
+  background: linear-gradient(to top, #2a2a2a 0%, #0a0a0a 100%);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  padding: 32px 24px;
+}
+
+.audit-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.audit-header {
+  margin-bottom: 32px;
+}
+
+.audit-header-content {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+}
+
+.audit-kicker {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 12px;
+}
+
+.audit-title {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-size: clamp(32px, 4vw, 48px);
+  background: linear-gradient(
+    90deg,
+    #f2f2f2 0%,
+    #cfcfcf 20%,
+    #ffffff 45%,
+    #bdbdbd 70%,
+    #f2f2f2 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 12px;
+}
+
+.audit-subtitle {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 800px;
+}
+
+/* Loading, Error, Empty States */
+.audit-loading,
+.audit-error,
+.audit-empty {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 48px;
+  text-align: center;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.55);
+}
+
+.audit-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: audit-spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes audit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.audit-error {
+  border-color: rgba(255, 100, 100, 0.3);
+  background: rgba(255, 100, 100, 0.05);
+}
+
+.audit-retry-btn {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.audit-retry-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.audit-empty-hint {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Table */
+.audit-table-wrapper {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.55);
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.audit-table thead {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.audit-table th {
+  padding: 16px 20px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.audit-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.15s ease;
+}
+
+.audit-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.audit-row:last-child {
+  border-bottom: none;
+}
+
+.audit-table td {
+  padding: 16px 20px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.audit-cell-user code {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.audit-cell-timestamp {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
+/* Status Badges */
+.audit-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audit-status-verified {
+  background: rgba(76, 175, 80, 0.15);
+  color: #81c784;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.audit-status-failed {
+  background: rgba(244, 67, 54, 0.15);
+  color: #e57373;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.audit-status-unknown {
+  background: rgba(158, 158, 158, 0.15);
+  color: #bdbdbd;
+  border: 1px solid rgba(158, 158, 158, 0.3);
+}
+
+.audit-cell-confidence {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Solana Hash Actions */
+.audit-hash-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audit-hash-code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.audit-btn {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.audit-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.audit-btn-copy {
+  min-width: 32px;
+}
+
+.audit-btn-explorer {
+  min-width: 32px;
+}
+
+.audit-hash-null {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* Footer */
+.audit-footer {
+  margin-top: 32px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.audit-footer p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.audit-footer strong {
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .audit-page {
+    padding: 16px;
+  }
+
+  .audit-header-content {
+    padding: 24px;
+  }
+
+  .audit-title {
+    font-size: 28px;
+  }
+
+  .audit-subtitle {
+    font-size: 14px;
+  }
+
+  .audit-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .audit-table {
+    min-width: 800px;
+  }
+
+  .audit-table th,
+  .audit-table td {
+    padding: 12px 16px;
+  }
+}
