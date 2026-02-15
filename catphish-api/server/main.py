@@ -195,6 +195,16 @@ class SessionVerifyResponse(BaseModel):
     solana_tx: Optional[dict] = None  # on-chain audit trail
 
 
+# --- Audit Trail Models ---
+class AuditEventResponse(BaseModel):
+    external_user_id: str
+    challenge_id: Optional[str]
+    timestamp: int
+    result_status: str
+    confidence_score: float
+    solana_tx_hash: Optional[str]
+
+
 # =====================================================================
 # Helpers
 # =====================================================================
@@ -310,6 +320,46 @@ def get_verification_session(
         external_user_id=session.external_user_id,
         return_url=session.return_url,
     )
+
+
+@app.get(f"/{API_VERSION}/audit/events", response_model=List[AuditEventResponse])
+def get_audit_events(
+    external_user_id: Optional[str] = None,
+    limit: Optional[int] = 100,
+    tenant: Tenant = Depends(require_tenant),
+):
+    """
+    Get audit trail events for a tenant, optionally filtered by user.
+    Returns events in reverse chronological order (newest first).
+    """
+    # Validate limit
+    if limit is not None:
+        limit = max(1, min(int(limit), 500))  # Cap at 500
+    else:
+        limit = 100
+    
+    # Get events from store
+    events = store.get_audit_events(
+        tenant_id=tenant.tenant_id,
+        external_user_id=external_user_id,
+        limit=limit,
+    )
+    
+    # Convert to response format
+    return [
+        AuditEventResponse(
+            external_user_id=event.external_user_id,
+            challenge_id=event.challenge_id,
+            timestamp=event.timestamp,
+            result_status=event.result_status,
+            confidence_score=event.confidence_score,
+            solana_tx_hash=event.solana_tx_hash,
+        )
+        for event in events
+    ]
+
+
+
 
 
 @app.post(f"/{API_VERSION}/enroll", response_model=EnrollmentResponse)
@@ -725,6 +775,15 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
                 similarity=layer1["similarity"],
                 reasons=fail_reasons,
             )
+            # ── Store audit event in Valkey ──
+            store.create_audit_event(
+                tenant_id=session.tenant_id,
+                external_user_id=session.external_user_id,
+                challenge_id=session_id,
+                result_status="failed",
+                confidence_score=layer1["confidence"],
+                solana_tx_hash=sol_tx.get("signature") if sol_tx else None,
+            )
             log.info("🔵" + "="*53)
             return SessionVerifyResponse(
                 status="failed",
@@ -801,6 +860,15 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
                 comprehension_recommendation=layer2.get('recommendation'),
                 reasons=reasons or ["verification_failed"],
             )
+            # ── Store audit event in Valkey ──
+            store.create_audit_event(
+                tenant_id=session.tenant_id,
+                external_user_id=session.external_user_id,
+                challenge_id=session_id,
+                result_status="failed",
+                confidence_score=overall,
+                solana_tx_hash=sol_tx.get("signature") if sol_tx else None,
+            )
             log.info("🔵" + "="*53)
             return SessionVerifyResponse(
                 status="failed",
@@ -824,6 +892,15 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
             similarity=layer1["similarity"],
             comprehension_recommendation=layer2.get('recommendation'),
             reasons=["all_checks_passed"],
+        )
+        # ── Store audit event in Valkey ──
+        store.create_audit_event(
+            tenant_id=session.tenant_id,
+            external_user_id=session.external_user_id,
+            challenge_id=session_id,
+            result_status="verified",
+            confidence_score=overall,
+            solana_tx_hash=sol_tx.get("signature") if sol_tx else None,
         )
         log.info("🔵" + "="*53)
         return SessionVerifyResponse(

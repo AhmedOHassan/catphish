@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import json
 import time
+import secrets
 from dataclasses import dataclass
-from typing import Any, Optional, Dict, Tuple
+from typing import Any, Optional, Dict, Tuple, List
 
 import redis
 
@@ -41,6 +42,18 @@ class VerificationSession:
     external_user_id: str
     return_url: Optional[str]
     created_at: int
+
+
+@dataclass(frozen=True)
+class AuditEvent:
+    event_id: str
+    tenant_id: str
+    external_user_id: str
+    challenge_id: Optional[str]
+    timestamp: int
+    result_status: str
+    confidence_score: float
+    solana_tx_hash: Optional[str]
 
 
 class ValkeyStore:
@@ -82,6 +95,14 @@ class ValkeyStore:
     @staticmethod
     def k_verification_session(session_id: str) -> str:
         return f"verification_session:{session_id}"
+
+    @staticmethod
+    def k_audit_event(tenant_id: str, external_user_id: str, event_id: str) -> str:
+        return f"audit:{tenant_id}:{external_user_id}:{event_id}"
+
+    @staticmethod
+    def k_audit_index(tenant_id: str) -> str:
+        return f"audit_index:{tenant_id}"
 
     # -------------------------
     # Tenant ops
@@ -304,4 +325,112 @@ class ValkeyStore:
             return_url=data.get("return_url") or None,
             created_at=created_at,
         )
+
+    # -------------------------
+    # Audit trail ops
+    # -------------------------
+    def create_audit_event(
+        self,
+        tenant_id: str,
+        external_user_id: str,
+        challenge_id: Optional[str],
+        result_status: str,
+        confidence_score: float,
+        solana_tx_hash: Optional[str] = None,
+    ) -> AuditEvent:
+        """
+        Creates an audit event record for a verification attempt.
+        Stores the event in a hash and adds it to the tenant's audit index.
+        """
+        event_id = "evt_" + secrets.token_hex(8)
+        timestamp = int(time.time())
+
+        # Store event data
+        key = self.k_audit_event(tenant_id, external_user_id, event_id)
+        self.r.hset(
+            key,
+            mapping={
+                "tenant_id": tenant_id,
+                "external_user_id": external_user_id,
+                "challenge_id": challenge_id or "",
+                "timestamp": str(timestamp),
+                "result_status": result_status,
+                "confidence_score": str(confidence_score),
+                "solana_tx_hash": solana_tx_hash or "",
+            },
+        )
+
+        # Add to tenant's audit index (sorted set by timestamp)
+        index_key = self.k_audit_index(tenant_id)
+        # Store as "event_id:external_user_id" to make filtering easier
+        self.r.zadd(index_key, {f"{event_id}:{external_user_id}": timestamp})
+
+        return AuditEvent(
+            event_id=event_id,
+            tenant_id=tenant_id,
+            external_user_id=external_user_id,
+            challenge_id=challenge_id,
+            timestamp=timestamp,
+            result_status=result_status,
+            confidence_score=confidence_score,
+            solana_tx_hash=solana_tx_hash,
+        )
+
+    def get_audit_events(
+        self,
+        tenant_id: str,
+        external_user_id: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[AuditEvent]:
+        """
+        Retrieves audit events for a tenant, optionally filtered by user.
+        Returns events in reverse chronological order (newest first).
+        """
+        index_key = self.k_audit_index(tenant_id)
+        
+        # Get events from sorted set (newest first)
+        # ZREVRANGE returns in descending order by score (timestamp)
+        event_entries = self.r.zrevrange(index_key, 0, limit - 1)
+        
+        events = []
+        for entry in event_entries:
+            # entry format: "event_id:external_user_id"
+            parts = entry.split(":", 1)
+            if len(parts) != 2:
+                continue
+            
+            evt_id, evt_user_id = parts
+            
+            # Filter by user if specified
+            if external_user_id and evt_user_id != external_user_id:
+                continue
+            
+            # Fetch event data
+            event_key = self.k_audit_event(tenant_id, evt_user_id, evt_id)
+            data = self.r.hgetall(event_key)
+            
+            if not data:
+                continue
+            
+            try:
+                timestamp = int(data.get("timestamp", "0"))
+                confidence_score = float(data.get("confidence_score", "0.0"))
+            except (ValueError, TypeError):
+                timestamp = 0
+                confidence_score = 0.0
+            
+            events.append(
+                AuditEvent(
+                    event_id=evt_id,
+                    tenant_id=data.get("tenant_id", tenant_id),
+                    external_user_id=data.get("external_user_id", evt_user_id),
+                    challenge_id=data.get("challenge_id") or None,
+                    timestamp=timestamp,
+                    result_status=data.get("result_status", "unknown"),
+                    confidence_score=confidence_score,
+                    solana_tx_hash=data.get("solana_tx_hash") or None,
+                )
+            )
+        
+        return events
 
