@@ -118,25 +118,14 @@ function FailurePage() {
           </button>
           
           <button 
-            onClick={handleContactSupport}
-            style={styles.supportButton}
-          >
-            📞 Contact Support
-          </button>
-
-          <button 
             onClick={handleReturnToApp}
             style={styles.homeButton}
           >
-            {localStorage.getItem('catphish_return_url') ? '← Return to Application' : '← Back to Home'}
+            ← Return to Login
           </button>
         </div>
 
-        <div style={styles.warningBox}>
-          <p style={styles.warningText}>
-            ⚠️ For security reasons, repeated failed attempts may temporarily lock your account.
-          </p>
-        </div>
+
       </div>
     </div>
   );
