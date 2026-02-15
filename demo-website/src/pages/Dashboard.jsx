@@ -24,11 +24,6 @@ function Dashboard() {
         setCurrentUser(user);
         setUser(user);
         localStorage.removeItem('pending_login_user');
-        
-        setVerificationMessage({
-          type: 'success',
-          text: `✅ Voice verification successful! Session ID: ${verificationResult.session_id}`
-        });
       } else if (!verificationResult.verified) {
         // Verification failed
         localStorage.removeItem('pending_login_user');
