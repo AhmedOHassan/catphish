@@ -52,7 +52,11 @@ echo ""
 echo "Step 4/6: Checking sample audio files..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 if [ -f "download_samples.py" ]; then
-    python3 download_samples.py
+    if python3 download_samples.py; then
+        echo "✅ Sample audio check completed"
+    else
+        echo "⚠️  Sample audio check completed with warnings"
+    fi
 else
     echo "⚠️  download_samples.py not found"
     echo "   Create test_audio directories manually and add .wav files"
