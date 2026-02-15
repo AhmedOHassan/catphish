@@ -146,15 +146,16 @@ def test_speaker_verification():
         with open(profile_path, 'r') as f:
             profile = json.load(f)
         
-        # Test cases
+        # Test cases with expected decisions
         test_dir = Path(__file__).parent / "test_audio"
         test_cases = [
-            ("legitimate", "Legitimate Speaker", True),
-            ("different_speaker", "Different Speaker", False),
+            ("enrollment", "Enrollment Audio (Same Speaker)", True, "Should MATCH - same speaker as profile"),
+            ("legitimate", "Legitimate Speaker (Same)", True, "Should MATCH - legitimate recordings from enrolled speaker"),
+            ("different_speaker", "Different Speaker", False, "Should NOT MATCH - different person's voice"),
         ]
         
         all_passed = True
-        for subdir, label, expected_match in test_cases:
+        for subdir, label, expected_match, explanation in test_cases:
             audio_dir = test_dir / subdir
             if not audio_dir.exists():
                 print(f"⚠️  Skipping {label}: directory not found")
@@ -167,11 +168,12 @@ def test_speaker_verification():
             
             audio_path = str(audio_files[0])
             print(f"\nTesting: {label} ({audio_files[0].name})")
+            print(f"Expected: {explanation}")
             
             result = verify_speaker(audio_path, profile, threshold=0.75)
             
             status = "✅" if result['match'] == expected_match else "❌"
-            print(f"{status} Similarity: {result['similarity']:.3f}, Match: {result['match']}")
+            print(f"{status} Similarity: {result['similarity']:.3f}, Match: {result['match']} (Expected: {expected_match})")
             
             if result['match'] != expected_match:
                 all_passed = False
@@ -192,13 +194,16 @@ def test_ai_detection():
         from verify import detect_ai_voice
         
         test_dir = Path(__file__).parent / "test_audio"
+        # Test cases with expected decisions and explanations
         test_cases = [
-            ("legitimate", "Legitimate Voice", False),
-            ("ai_voice", "AI Generated Voice", True),
+            ("enrollment", "Enrollment Audio", False, "Should be HUMAN - real person enrollment"),
+            ("legitimate", "Legitimate Voice", False, "Should be HUMAN - genuine human recordings"),
+            ("different_speaker", "Different Speaker", False, "Should be HUMAN - different person but still human"),
+            ("ai_voice", "AI Generated Voice", True, "Should be AI - synthetic/cloned voice"),
         ]
         
         all_passed = True
-        for subdir, label, expected_ai in test_cases:
+        for subdir, label, expected_ai, explanation in test_cases:
             audio_dir = test_dir / subdir
             if not audio_dir.exists():
                 print(f"⚠️  Skipping {label}: directory not found")
@@ -211,11 +216,14 @@ def test_ai_detection():
             
             audio_path = str(audio_files[0])
             print(f"\nTesting: {label} ({audio_files[0].name})")
+            print(f"Expected: {explanation}")
             
             result = detect_ai_voice(audio_path, threshold=0.993)
             
             status = "✅" if result['is_ai'] == expected_ai else "⚠️"
-            print(f"{status} AI Probability: {result['ai_probability']:.3f}, Is AI: {result['is_ai']}")
+            decision = "AI" if result['is_ai'] else "HUMAN"
+            expected_decision = "AI" if expected_ai else "HUMAN"
+            print(f"{status} AI Probability: {result['ai_probability']:.3f}, Decision: {decision} (Expected: {expected_decision})")
             print(f"   Method: {result['method']}")
             
             if result.get('warning'):
@@ -277,35 +285,67 @@ def test_full_pipeline():
             print(f"❌ Test profile not found")
             return False
         
-        # Find a legitimate test file
-        test_dir = Path(__file__).parent / "test_audio/legitimate"
-        if not test_dir.exists():
-            print(f"❌ Test audio directory not found")
-            return False
+        # Test multiple scenarios with expected outcomes
+        test_scenarios = [
+            {
+                "dir": "legitimate",
+                "phrase": "toy boat toy boat toy boat 3 free throws",
+                "expected_verdict": "VERIFIED",
+                "description": "Should PASS all layers - legitimate speaker with correct phrase"
+            },
+            {
+                "dir": "different_speaker",
+                "phrase": None,
+                "expected_verdict": "BLOCKED",
+                "description": "Should FAIL Layer 2 - different speaker (no phrase check)"
+            },
+            {
+                "dir": "ai_voice",
+                "phrase": None,
+                "expected_verdict": "BLOCKED",
+                "description": "Should FAIL Layer 3 - AI-generated voice (no phrase check)"
+            },
+        ]
         
-        audio_files = list(test_dir.glob("*.wav"))
-        if not audio_files:
-            print(f"❌ No test audio files found")
-            return False
+        all_passed = True
+        for scenario in test_scenarios:
+            test_dir = Path(__file__).parent / "test_audio" / scenario["dir"]
+            if not test_dir.exists():
+                print(f"⚠️  Skipping {scenario['dir']}: directory not found")
+                continue
+            
+            audio_files = list(test_dir.glob("*.wav"))
+            if not audio_files:
+                print(f"⚠️  Skipping {scenario['dir']}: no WAV files")
+                continue
+            
+            audio_path = str(audio_files[0])
+            
+            print(f"\n{'='*60}")
+            print(f"Scenario: {scenario['dir']} ({audio_files[0].name})")
+            print(f"Expected: {scenario['description']}")
+            if scenario['phrase']:
+                print(f"Phrase: '{scenario['phrase']}'")
+            print(f"{'='*60}")
+            
+            result = verify_voice(
+                audio_path,
+                str(profile_path),
+                expected_phrase=scenario['phrase']
+            )
+            
+            verdict_match = result['verdict'] == scenario['expected_verdict']
+            status = "✅" if verdict_match else "❌"
+            
+            print(f"\n{status} Result: {result['verdict']} (Expected: {scenario['expected_verdict']})")
+            if result.get('failed_layers'):
+                print(f"   Failed layers: {', '.join(f'Layer {l}' for l in result['failed_layers'])}")
+            
+            if not verdict_match:
+                all_passed = False
+                print(f"   ⚠️  Verdict mismatch!")
         
-        audio_path = str(audio_files[0])
-        expected_phrase = "toy boat toy boat toy boat 3 free throws"
-        
-        print(f"Running full pipeline on: {audio_files[0].name}")
-        print(f"Expected phrase: {expected_phrase}")
-        
-        result = verify_voice(
-            audio_path,
-            str(profile_path),
-            expected_phrase=expected_phrase
-        )
-        
-        print(f"\n✅ Pipeline completed")
-        print(f"   Verdict: {result['verdict']}")
-        if result.get('failed_layers'):
-            print(f"   Failed layers: {result['failed_layers']}")
-        
-        return True
+        return all_passed
         
     except Exception as e:
         print(f"❌ Full pipeline test failed: {e}")

@@ -24,16 +24,31 @@ echo ""
 # Step 2: Verify core packages
 echo "Step 2/6: Verifying installation..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-python3 -c "from resemblyzer import VoiceEncoder; print('✅ Resemblyzer')"
+echo "Required packages:"
+python3 -c "import numpy; print('✅ NumPy')"
+python3 -c "import scipy; print('✅ SciPy')"
 python3 -c "import torch; print('✅ PyTorch')"
-python3 -c "from google import genai; print('✅ Google Generative AI')"
+python3 -c "import torchaudio; print('✅ TorchAudio')"
+python3 -c "from resemblyzer import VoiceEncoder; print('✅ Resemblyzer')"
+python3 -c "import librosa; print('✅ Librosa')"
 python3 -c "import soundfile; print('✅ SoundFile')"
+python3 -c "import speech_recognition; print('✅ SpeechRecognition')"
+python3 -c "from google import genai; print('✅ Google Generative AI')"
+python3 -c "import dotenv; print('✅ python-dotenv')"
 echo ""
 
 # Step 3: Setup environment file
 echo "Step 3/6: Setting up environment..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if [ ! -f ".env" ]; then
+if [ ! -f ".env.example" ]; then
+    echo "⚠️  .env.example file not found"
+    echo "   Creating basic .env file..."
+    echo "# Voice Detection Demo - Environment Variables" > .env
+    echo "" >> .env
+    echo "# Get your API key from: https://aistudio.google.com/app/apikey" >> .env
+    echo "GEMINI_API_KEY=your_api_key_here" >> .env
+    echo "⚠️  Created .env file - add your GEMINI_API_KEY"
+elif [ ! -f ".env" ]; then
     cp .env.example .env
     echo "⚠️  Created .env file from template"
     echo "   ➜ Add your GEMINI_API_KEY to .env"
@@ -61,26 +76,32 @@ else
 fi
 echo ""
 
-# Step 5: Setup AASIST model (Layer 3 AI Detection)
-echo "Step 5/6: Setting up AASIST model..."
+# Step 5: Setup AASIST model (Layer 3 AI Detection) - OPTIONAL
+echo "Step 5/6: Setting up AASIST model (OPTIONAL)..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Note: AASIST is optional. System will use spectral flatness heuristic if unavailable."
+echo ""
 mkdir -p models/aasist/models/weights
 
 if [ ! -d "models/aasist/.git" ]; then
     echo "Cloning AASIST repository..."
-    git clone https://github.com/clovaai/aasist.git models/aasist
-    echo "✅ AASIST repository cloned"
+    if git clone https://github.com/clovaai/aasist.git models/aasist 2>&1; then
+        echo "✅ AASIST repository cloned"
+    else
+        echo "⚠️  AASIST clone failed (continuing without it)"
+    fi
 else
     echo "✅ AASIST repository exists"
 fi
 
 if [ -f "models/aasist/models/weights/AASIST.pth" ]; then
     echo "✅ AASIST weights found ($(du -h models/aasist/models/weights/AASIST.pth | cut -f1))"
+    echo "   AI detection will use AASIST model (high accuracy)"
 else
     echo "⚠️  AASIST weights not found"
-    echo "   The system will use fallback heuristic (less accurate)"
+    echo "   The system will use spectral flatness fallback (lower accuracy)"
     echo "   To add AASIST:"
-    echo "   1. Download weights from AASIST releases"
+    echo "   1. Download weights from: https://github.com/clovaai/aasist/releases"
     echo "   2. Place at: models/aasist/models/weights/AASIST.pth"
 fi
 echo ""
@@ -143,6 +164,7 @@ fi
 echo ""
 echo "🧪 Validate setup:    python validate_setup.py"
 echo "🔬 Run full tests:    python debug_test.py"
-echo "🎮 Run demo:          python demo.py"
+echo "📝 Enroll voice:      python enroll.py test_audio/enrollment/*.wav -o profile.json"
+echo "✅ Verify voice:      python verify.py test.wav -p profile.json -e 'expected phrase'"
 echo ""
 echo "📖 Documentation:     README.md, USAGE_GUIDE.md"

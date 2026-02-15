@@ -30,17 +30,16 @@ voice-detection-demo/
 ├── README.md                # This file
 ├── enroll.py                # ✅ Voice enrollment system
 ├── verify.py                # ✅ Verification with all 4 layers
-├── demo.py                  # ✅ Interactive CLI demo
-├── download_samples.py      # Helper to get test audio
+├── aasist_inference.py      # AASIST model wrapper
+├── debug_test.py            # Debug and test suite
 ├── validate_setup.py        # Setup validation tool
-├── quick_start.sh           # Automated setup script
+├── setup.sh                 # Automated setup script
 ├── test_audio/              # Test audio samples
 │   ├── enrollment/          # 3-5 samples from same speaker
 │   ├── legitimate/          # Should pass verification
 │   ├── different_speaker/   # Should fail Layer 2
 │   └── ai_voice/            # Should fail Layer 3
 └── tests/                   # Test scripts
-    ├── test_phase1-2.sh     # Phase 1-2 tests
     └── test_complete.sh     # Complete test suite
 ```
 
@@ -311,7 +310,7 @@ After completing Phase 1-2, the next phases will add:
 - **Phase 4**: Layer 3 - AI Detection
 - **Phase 5**: Layer 4 - Gemini Comprehension Check
 - **Phase 6**: Complete Verification Pipeline
-- **Phase 7**: Interactive CLI Demo (`demo.py`)
+- **Phase 7**: Testing and Validation (`debug_test.py`, `validate_setup.py`)
 - **Phase 8**: Automated Test Suite
 
 ---

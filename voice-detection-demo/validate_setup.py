@@ -128,7 +128,9 @@ def main():
         ("requirements.txt", "requirements.txt"),
         ("enroll.py", "enroll.py"),
         ("verify.py", "verify.py"),
-        ("demo.py", "demo.py"),
+        ("debug_test.py", "debug_test.py"),
+        ("validate_setup.py", "validate_setup.py"),
+        ("aasist_inference.py", "aasist_inference.py"),
         (".env.example", ".env.example"),
         (".gitignore", ".gitignore"),
         ("README.md", "README.md"),
@@ -259,7 +261,7 @@ def main():
         print("╚══════════════════════════════════════════════════════════╝")
         print()
         print("🎉 Ready to use!")
-        print("   Try: python demo.py")
+        print("   Try: python debug_test.py")
         return 0
     elif checks_failed == 0:
         print("╔══════════════════════════════════════════════════════════╗")

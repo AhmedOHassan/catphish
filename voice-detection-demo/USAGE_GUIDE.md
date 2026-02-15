@@ -53,21 +53,6 @@ python verify.py --help
 
 ---
 
-### Interactive Demo
-
-**Launch demo:**
-```bash
-python demo.py
-```
-
-**Menu options:**
-1. **Enroll a voice profile**: Create new profile from audio samples
-2. **Verify an audio file**: Test audio against existing profile
-3. **Full demo**: Complete workflow (enroll → verify)
-4. **Exit**: Quit the demo
-
----
-
 ## 🔍 Understanding Each Layer
 
 ### Layer 2: Speaker Verification (Resemblyzer)

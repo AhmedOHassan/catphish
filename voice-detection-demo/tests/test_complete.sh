@@ -65,7 +65,9 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 required_files=(
     "enroll.py"
     "verify.py"
-    "demo.py"
+    "aasist_inference.py"
+    "debug_test.py"
+    "validate_setup.py"
     "requirements.txt"
     ".env.example"
     "README.md"
@@ -232,7 +234,7 @@ if [ $TESTS_FAILED -eq 0 ]; then
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
     echo "🎉 You can now:"
-    echo "   - Run: python demo.py"
+    echo "   - Run: python debug_test.py"
     echo "   - Try verification with phrases"
     echo "   - Test with different audio samples"
     exit 0
