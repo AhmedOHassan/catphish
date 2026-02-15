@@ -8,6 +8,7 @@ from typing import Optional, Literal, List, Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from db.valkey_store import ValkeyStore, Tenant
@@ -33,6 +34,15 @@ RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "5"))
 store = ValkeyStore(host=VALKEY_HOST, port=VALKEY_PORT)
 
 app = FastAPI(title=APP_NAME, version="0.1.0")
+
+# Add CORS middleware to allow frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Frontend URLs
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # -------------------------
@@ -92,6 +102,22 @@ class HealthResponse(BaseModel):
     timestamp: int
 
 
+class CreateVerificationSessionRequest(BaseModel):
+    external_user_id: str = Field(..., min_length=1, max_length=200)
+    return_url: Optional[str] = None
+
+
+class CreateVerificationSessionResponse(BaseModel):
+    session_id: str
+    verification_url: str
+
+
+class GetVerificationSessionResponse(BaseModel):
+    session_id: str
+    external_user_id: str
+    return_url: Optional[str]
+
+
 # -------------------------
 # Helpers
 # -------------------------
@@ -148,6 +174,55 @@ def health():
         return HealthResponse(ok=bool(pong), valkey=f"{VALKEY_HOST}:{VALKEY_PORT}", timestamp=int(time.time()))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Valkey health check failed: {e}")
+
+
+@app.post(f"/{API_VERSION}/verification-sessions", response_model=CreateVerificationSessionResponse, status_code=201)
+def create_verification_session(req: CreateVerificationSessionRequest, tenant: Tenant = Depends(require_tenant)):
+    """
+    Create a verification session that returns a session_id.
+    The session stores user_id and return_url server-side.
+    """
+    # Generate session ID
+    session_id = "vs_" + secrets.token_hex(16)
+    
+    # Store session in Valkey with TTL (10 minutes)
+    store.create_verification_session(
+        session_id=session_id,
+        tenant_id=tenant.tenant_id,
+        external_user_id=req.external_user_id,
+        return_url=req.return_url,
+        ttl_seconds=600,
+    )
+    
+    # Build verification URL with only session_id
+    frontend_url = os.getenv("CATPHISH_FRONTEND_URL", "http://localhost:3001")
+    verification_url = f"{frontend_url}/verify?session_id={session_id}"
+    
+    return CreateVerificationSessionResponse(
+        session_id=session_id,
+        verification_url=verification_url,
+    )
+
+
+@app.get(f"/{API_VERSION}/verification-sessions/{{session_id}}", response_model=GetVerificationSessionResponse)
+def get_verification_session(session_id: str, tenant: Tenant = Depends(require_tenant)):
+    """
+    Get verification session information by session_id.
+    Used by the frontend to retrieve user_id and return_url.
+    """
+    session = store.get_verification_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Verification session not found or expired")
+    
+    # Verify tenant matches
+    if session.tenant_id != tenant.tenant_id:
+        raise HTTPException(status_code=403, detail="Session belongs to different tenant")
+    
+    return GetVerificationSessionResponse(
+        session_id=session.session_id,
+        external_user_id=session.external_user_id,
+        return_url=session.return_url,
+    )
 
 
 @app.post(f"/{API_VERSION}/enroll", response_model=EnrollmentResponse)

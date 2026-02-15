@@ -6,6 +6,44 @@
 
 ## pip install -r requirements.txt
 
+## Running the Full Demo
+
+To run the complete demo with voice verification:
+
+### 1) Start Valkey
+```bash
+docker compose up -d
+```
+
+### 2) Seed demo data
+```bash
+./scripts/seed-valkey.sh
+```
+
+### 3) Start the backend API (Terminal 1)
+```bash
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 4) Start the catphish-api frontend (Terminal 2)
+```bash
+cd catphish-api
+npm install  # first time only
+npm run dev -- --port 3001
+```
+
+### 5) Start the demo-website frontend (Terminal 3)
+```bash
+cd demo-website
+npm install  # first time only
+npm run dev -- --port 3000
+```
+
+### 6) Access the demo
+- Open http://localhost:3000 in your browser
+- Sign up and login to test the voice verification flow
+- The verification will use session-based URLs (only session_id visible)
+
 ## Quickstart (Valkey)
 
 ## 1) Start Valkey

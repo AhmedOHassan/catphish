@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { checkUserEnrollment, createVerificationSession } from '../services/catphishService';
+import { checkUserEnrollment, createVerificationSession, getSessionInfo } from '../services/catphishService';
 
 function VerificationPage() {
   const navigate = useNavigate();
@@ -11,38 +11,52 @@ function VerificationPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [hasRecorded, setHasRecorded] = useState(false);
   const [externalUserId, setExternalUserId] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [returnUrl, setReturnUrl] = useState('');
 
   useEffect(() => {
-    // Get external_user_id from URL parameters (passed from parent app)
+    // Get session_id from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
-    const userIdFromUrl = urlParams.get('user_id');
-    const returnUrlFromUrl = urlParams.get('return_url');
+    const sessionIdFromUrl = urlParams.get('session_id');
     
-    let userId = userIdFromUrl;
-    
-    if (!userId) {
-      // Fallback: try localStorage (for backward compatibility)
-      userId = localStorage.getItem('external_user_id');
+    if (!sessionIdFromUrl) {
+      console.error('No session_id provided in URL');
+      alert('Invalid verification link. Missing session ID.');
+      return;
     }
     
-    if (!userId) {
-      // If still no user ID, create a demo one
-      const demoUserId = `user_${Date.now()}`;
-      userId = demoUserId;
-    }
+    setSessionId(sessionIdFromUrl);
     
-    // Store in localStorage for this session
-    localStorage.setItem('external_user_id', userId);
-    setExternalUserId(userId);
-    
-    // Store return URL if provided
-    if (returnUrlFromUrl) {
-      localStorage.setItem('catphish_return_url', returnUrlFromUrl);
-    }
-
-    // Check if user is enrolled
-    checkEnrollmentStatus(userId);
+    // Fetch session info from API
+    fetchSessionInfo(sessionIdFromUrl);
   }, []);
+
+  const fetchSessionInfo = async (sessionId) => {
+    try {
+      setLoading(true);
+      const sessionInfo = await getSessionInfo(sessionId);
+      
+      // Extract user_id and return_url from session
+      const userId = sessionInfo.external_user_id;
+      const returnUrlFromSession = sessionInfo.return_url;
+      
+      setExternalUserId(userId);
+      setReturnUrl(returnUrlFromSession || '');
+      
+      // Store in localStorage for this session (optional, for backward compatibility)
+      localStorage.setItem('external_user_id', userId);
+      if (returnUrlFromSession) {
+        localStorage.setItem('catphish_return_url', returnUrlFromSession);
+      }
+      
+      // Check if user is enrolled
+      await checkEnrollmentStatus(userId);
+    } catch (error) {
+      console.error('Error fetching session info:', error);
+      alert('Failed to load verification session. Please try again.');
+      setLoading(false);
+    }
+  };
 
   const checkEnrollmentStatus = async (userId) => {
     try {
@@ -203,7 +217,7 @@ function VerificationPage() {
 
         <div style={styles.infoBox}>
           <p style={styles.infoText}>
-            ℹ️ User ID: {externalUserId}
+            ℹ️ Session ID: {sessionId}
           </p>
           <p style={styles.infoText}>
             {isEnrolled ? 'Enrolled User - Verification Flow' : 'New User - Enrollment Flow'}
