@@ -145,7 +145,7 @@ function VerificationPage() {
           <p style={styles.message}>
             {isEnrolled
               ? 'Welcome back! Please follow the instruction below carefully.'
-              : 'To protect your account from AI voice fraud, please read the following phrase clearly:'}
+              : 'To set up voice protection, follow each instruction below one by one:'}
           </p>
 
           {phraseType === 'verification' ? (
@@ -157,8 +157,16 @@ function VerificationPage() {
               </div>
             </div>
           ) : (
-            <div style={styles.phraseBox}>
-              <p style={styles.phrase}>"{phrase}"</p>
+            <div style={styles.instructionBox}>
+              <div style={styles.instructionLabel}>📋 Follow each instruction in order:</div>
+              <div style={styles.enrollmentList}>
+                {phrase.split('\n').map((line, i) => (
+                  <p key={i} style={styles.enrollmentItem}>{line}</p>
+                ))}
+              </div>
+              <div style={styles.instructionHint}>
+                ⚡ Don't just read them — follow each instruction!
+              </div>
             </div>
           )}
         </div>
@@ -269,6 +277,16 @@ const styles = {
   instructionHint: {
     fontSize: '14px', color: '#bf360c', textAlign: 'center',
     marginTop: '12px', fontStyle: 'italic',
+  },
+  enrollmentList: {
+    display: 'flex', flexDirection: 'column', gap: '10px',
+    margin: '10px 0',
+  },
+  enrollmentItem: {
+    fontSize: '18px', fontWeight: '600', color: '#2c3e50',
+    textAlign: 'left', margin: 0, padding: '8px 12px',
+    backgroundColor: 'rgba(255,152,0,0.08)', borderRadius: '6px',
+    lineHeight: '1.5',
   },
   buttonContainer: {
     display: 'flex', flexDirection: 'column', gap: '15px',

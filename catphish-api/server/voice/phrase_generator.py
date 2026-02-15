@@ -196,6 +196,48 @@ def generate_verification_phrase() -> dict:
     return _generator.generate()
 
 
+def generate_enrollment_phrases(count: int = 5) -> dict:
+    """
+    Generate multiple anti-TTS instruction phrases for enrollment.
+
+    Using several phrases gives Resemblyzer a richer baseline of the
+    speaker's natural voice (tone, cadence, pitch) and ensures the
+    embedding is built from the same *kind* of speech used during
+    verification.
+
+    Returns:
+        dict with:
+            - instruction: str  (numbered list of all instructions)
+            - expected_behavior: str  (combined expected behaviors)
+            - phrases: list[dict]  (individual phrase dicts)
+            - difficulty: str
+            - type: str
+    """
+    seen_types: set[str] = set()
+    phrases: list[dict] = []
+
+    # Pick distinct template types so the user gets variety
+    while len(phrases) < count:
+        p = _generator.generate()
+        if p['type'] not in seen_types or len(seen_types) >= len(_generator.templates):
+            phrases.append(p)
+            seen_types.add(p['type'])
+
+    numbered = [f"{i+1}. {p['instruction']}" for i, p in enumerate(phrases)]
+    combined_instruction = "\n".join(numbered)
+    combined_expected = " | ".join(
+        f"Phrase {i+1}: {p['expected_behavior']}" for i, p in enumerate(phrases)
+    )
+
+    return {
+        'instruction': combined_instruction,
+        'expected_behavior': combined_expected,
+        'phrases': phrases,
+        'difficulty': 'medium',
+        'type': 'enrollment_multi',
+    }
+
+
 def get_enrollment_phrase() -> str:
     """Return the standard enrollment phrase (covers all phonemes)."""
     return ENROLLMENT_PHRASE
