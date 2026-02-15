@@ -8,6 +8,7 @@ from typing import Optional, Literal, List, Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from db.valkey_store import ValkeyStore, Tenant
@@ -33,6 +34,15 @@ RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "5"))
 store = ValkeyStore(host=VALKEY_HOST, port=VALKEY_PORT)
 
 app = FastAPI(title=APP_NAME, version="0.1.0")
+
+# Add CORS middleware to allow frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Frontend URLs
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # -------------------------
