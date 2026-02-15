@@ -5,6 +5,7 @@ const tabs = [
   { id: 'product', label: 'Product', path: '/' },
   { id: 'documentation', label: 'Documentation', path: '/documentation' },
   { id: 'team', label: 'Team', path: '/team' },
+  { id: 'privacy', label: 'Privacy Policy', path: '/privacy' },
 ]
 
 function Navbar() {

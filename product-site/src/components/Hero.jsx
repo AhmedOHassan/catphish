@@ -39,6 +39,14 @@ function Hero() {
         transition={{ duration: 0.7, delay: 0.7 }}
       >
         <button className="cta-button">Get Started</button>
+        <a 
+          href="https://github.com/AhmedOHassan/catphish" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="cta-button cta-button-dark"
+        >
+          Github
+        </a>
       </motion.div>
       </div>
     </section>
