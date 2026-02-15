@@ -1,0 +1,21 @@
+# Voice Detection Demo - Python Dependencies
+
+# Core ML/Audio
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Voice Processing
+resemblyzer>=0.1.3
+librosa>=0.10.0
+soundfile>=0.12.0
+
+# Speech Recognition
+SpeechRecognition>=3.10.0
+
+# Gemini API (new SDK)
+google-genai>=1.0.0
+
+# Environment
+python-dotenv>=1.0.0
