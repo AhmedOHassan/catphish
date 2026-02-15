@@ -1,39 +1,35 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function SuccessPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const result = location.state?.result || {};
+  const isEnrollment = location.state?.enrollment || false;
 
-  useEffect(() => {
-    // Auto-redirect after 2 seconds if return URL exists
-    const returnUrl = localStorage.getItem('catphish_return_url');
-    if (returnUrl) {
-      const timer = setTimeout(() => {
-        handleReturnToApp();
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+
 
   const handleReturnToApp = () => {
-    // Get return URL from localStorage
     const returnUrl = localStorage.getItem('catphish_return_url') || 'http://localhost:3000/dashboard';
-    const sessionId = `session_${Date.now()}`;
-    
-    // Clean up
     localStorage.removeItem('catphish_return_url');
-    
-    // Redirect back to parent app with success status
+
     const url = new URL(returnUrl);
     url.searchParams.set('verification_status', 'success');
-    url.searchParams.set('session_id', sessionId);
-    
     window.location.href = url.toString();
   };
 
   const handleNewVerification = () => {
-    // Start a new verification session
-    navigate('/verify');
+    // Redirect back to parent app so it can create a new verification session
+    const returnUrl = localStorage.getItem('catphish_return_url');
+    if (returnUrl) {
+      localStorage.removeItem('catphish_return_url');
+      const url = new URL(returnUrl);
+      url.searchParams.set('verification_status', 'new_request');
+      window.location.href = url.toString();
+    } else {
+      // No return URL — go to demo-website login to start fresh
+      window.location.href = 'http://localhost:3000/login';
+    }
   };
 
   const handleGoHome = () => {
@@ -53,26 +49,15 @@ function SuccessPage() {
           <div style={styles.successIcon}>✓</div>
         </div>
         
-        <h1 style={styles.title}>Voice Verified!</h1>
+        <h1 style={styles.title}>
+          {isEnrollment ? 'Voice Enrolled!' : 'Voice Verified!'}
+        </h1>
         
         <p style={styles.message}>
-          Your voice has been successfully verified. Access granted.
+          {isEnrollment
+            ? 'Your voice has been enrolled successfully. Your account is now protected.'
+            : 'Your voice has been successfully verified. Access granted.'}
         </p>
-
-        <div style={styles.detailsBox}>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Status:</span>
-            <span style={styles.detailValue}>✅ Verified</span>
-          </div>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Timestamp:</span>
-            <span style={styles.detailValue}>{new Date().toLocaleString()}</span>
-          </div>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Session ID:</span>
-            <span style={styles.detailValue}>demo_session_{Date.now()}</span>
-          </div>
-        </div>
 
         <div style={styles.buttonContainer}>
           <button 
@@ -81,18 +66,7 @@ function SuccessPage() {
           >
             {localStorage.getItem('catphish_return_url') ? 'Continue to Application' : 'Continue'}
           </button>
-          
-          <button 
-            onClick={handleNewVerification}
-            style={styles.secondaryButton}
-          >
-            Start New Verification
-          </button>
         </div>
-
-        {localStorage.getItem('catphish_return_url') && (
-          <p style={styles.autoRedirect}>Automatically redirecting in 2 seconds...</p>
-        )}
 
         <div style={styles.infoBox}>
           <p style={styles.infoText}>

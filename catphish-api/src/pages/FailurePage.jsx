@@ -1,27 +1,47 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function FailurePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const result = location.state?.result || {};
+  const errorMessage = location.state?.error || '';
+
+  // Build dynamic reasons from the backend response
+  const backendReasons = result.reasons || [];
+  const displayReasons = backendReasons.length > 0
+    ? backendReasons
+    : [
+        'Background noise interfering with recording',
+        'Voice doesn\'t match stored biometric',
+        'Poor audio quality or microphone issues',
+        'Incorrect phrase spoken',
+      ];
 
   const handleRetry = () => {
-    // Go back to verification page to try again
-    navigate('/verify');
+    // Go back to verification page with the same session to retry
+    const sid = location.state?.sessionId;
+    if (sid) {
+      navigate(`/verify?session_id=${sid}`);
+    } else {
+      // No session available — redirect to parent app to start fresh
+      const returnUrl = localStorage.getItem('catphish_return_url');
+      if (returnUrl) {
+        localStorage.removeItem('catphish_return_url');
+        window.location.href = returnUrl;
+      } else {
+        window.location.href = 'http://localhost:3000/login';
+      }
+    }
   };
 
   const handleReturnToApp = () => {
-    // Get return URL from localStorage
-    const returnUrl = localStorage.getItem('catphish_return_url') || 'http://localhost:3000/dashboard';
-    
     // Clean up
     localStorage.removeItem('catphish_return_url');
+    localStorage.removeItem('pending_login_user');
     
-    // Redirect back to parent app with failure status
-    const url = new URL(returnUrl);
-    url.searchParams.set('verification_status', 'failure');
-    url.searchParams.set('session_id', `failed_${Date.now()}`);
-    
-    window.location.href = url.toString();
+    // Go straight to login page
+    window.location.href = 'http://localhost:3000/login';
   };
 
   const handleGoHome = () => {
@@ -49,31 +69,32 @@ function FailurePage() {
         <h1 style={styles.title}>Verification Failed</h1>
         
         <p style={styles.message}>
-          We couldn't verify your voice. This could be due to several reasons:
+          {result.message || errorMessage || "We couldn't verify your voice. This could be due to several reasons:"}
         </p>
 
         <div style={styles.reasonsBox}>
           <ul style={styles.reasonsList}>
-            <li style={styles.reasonItem}>Background noise interfering with recording</li>
-            <li style={styles.reasonItem}>Voice doesn't match stored biometric</li>
-            <li style={styles.reasonItem}>Poor audio quality or microphone issues</li>
-            <li style={styles.reasonItem}>Incorrect phrase spoken</li>
+            {displayReasons.map((reason, i) => (
+              <li key={i} style={styles.reasonItem}>{reason}</li>
+            ))}
           </ul>
         </div>
 
         <div style={styles.detailsBox}>
           <div style={styles.detailRow}>
             <span style={styles.detailLabel}>Status:</span>
-            <span style={styles.detailValue}>❌ Failed</span>
+            <span style={styles.detailValue}>❌ {result.status || 'Failed'}</span>
           </div>
           <div style={styles.detailRow}>
             <span style={styles.detailLabel}>Timestamp:</span>
             <span style={styles.detailValue}>{new Date().toLocaleString()}</span>
           </div>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Error Code:</span>
-            <span style={styles.detailValue}>401 - Unauthorized</span>
-          </div>
+          {result.similarity != null && (
+            <div style={styles.detailRow}>
+              <span style={styles.detailLabel}>Voice Similarity:</span>
+              <span style={styles.detailValue}>{(result.similarity * 100).toFixed(1)}%</span>
+            </div>
+          )}
         </div>
 
         <div style={styles.buttonContainer}>
@@ -85,25 +106,14 @@ function FailurePage() {
           </button>
           
           <button 
-            onClick={handleContactSupport}
-            style={styles.supportButton}
-          >
-            📞 Contact Support
-          </button>
-
-          <button 
             onClick={handleReturnToApp}
             style={styles.homeButton}
           >
-            {localStorage.getItem('catphish_return_url') ? '← Return to Application' : '← Back to Home'}
+            ← Return to Login
           </button>
         </div>
 
-        <div style={styles.warningBox}>
-          <p style={styles.warningText}>
-            ⚠️ For security reasons, repeated failed attempts may temporarily lock your account.
-          </p>
-        </div>
+
       </div>
     </div>
   );
