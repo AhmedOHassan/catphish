@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import time
-from typing import Optional, Literal, List
+from typing import Optional, Literal, List, Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel, Field
 
 from db.valkey_store import ValkeyStore, Tenant
+from voice.encoder import create_embedding
+from voice.verification import compare_embeddings
+from voice.ai_detection import detect_ai
+from voice.comprehension import comprehension_check
+from voice.audio_utils import base64_to_bytes
 
 load_dotenv()  # loads .env from repo root when running from repo root
 
@@ -76,6 +82,8 @@ class VerifyChallengeResponse(BaseModel):
     confidence_score: float
     risk_level: Literal["low", "medium", "high"]
     reasons: List[str]
+    similarity: Optional[float] = None
+    ai_probability: Optional[float] = None
 
 
 class HealthResponse(BaseModel):
@@ -114,30 +122,20 @@ def generate_phrase() -> str:
     return secrets.choice(phrases)
 
 
-def stub_compute_embedding(audio_b64: str) -> list:
+def parse_embedding(voice_embedding: Any) -> list:
     """
-    MVP placeholder. Real system would compute a voice embedding.
-    Here we just create a tiny deterministic 'embedding' based on input length.
+    Parse voice embedding from storage format to list.
+    Handles both string (JSON) and list formats.
+    
+    Args:
+        voice_embedding: Embedding in string or list format
+        
+    Returns:
+        list: Parsed embedding as list of floats
     """
-    n = len(audio_b64)
-    return [round((n % 97) / 97.0, 4), round((n % 53) / 53.0, 4), round((n % 31) / 31.0, 4)]
-
-
-def stub_verify_human(audio_b64: str, phrase: str) -> tuple[bool, float, list]:
-    """
-    MVP placeholder for "AI spoof detection / liveness".
-    For demo: treat very short audio as suspicious.
-    """
-    reasons = []
-    if len(audio_b64) < 2000:
-        return False, 0.25, ["audio_too_short_suspicious"]
-    reasons.append("timing_ok")
-
-    # In the real implementation: ASR transcript must match phrase + liveness model
-    # For MVP: assume phrase match OK if audio is long enough.
-    reasons.append("phrase_match_ok")
-
-    return True, 0.92, reasons
+    if isinstance(voice_embedding, str):
+        return json.loads(voice_embedding)
+    return voice_embedding
 
 
 # -------------------------
@@ -154,13 +152,19 @@ def health():
 
 @app.post(f"/{API_VERSION}/enroll", response_model=EnrollmentResponse)
 def enroll(req: EnrollmentRequest, tenant: Tenant = Depends(require_tenant)):
-    # Compute and store "embedding" (stubbed)
-    embedding = stub_compute_embedding(req.audio_sample)
+    # Compute real voice embedding
+    try:
+        audio_bytes = base64_to_bytes(req.audio_sample)
+        embedding = create_embedding(audio_bytes)
+        # Convert numpy array to list for JSON serialization
+        embedding_list = embedding.tolist()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to process audio: {str(e)}")
 
     user = store.upsert_user_embedding(
         tenant_id=tenant.tenant_id,
         external_user_id=req.external_user_id,
-        voice_embedding=embedding,
+        voice_embedding=embedding_list,
         created_at_iso=now_iso(),
     )
 
@@ -258,9 +262,97 @@ def verify_challenge(challenge_id: str, req: VerifyChallengeRequest, tenant: Ten
             reasons=["external_user_id_mismatch"],
         )
 
-    ok, conf, reasons = stub_verify_human(req.audio_sample, ch.phrase)
-    status: VerifyStatus = "verified" if ok else "failed"
-    risk = "low" if ok else "high"
+    # Get enrolled user embedding
+    user = store.get_user(tenant.tenant_id, req.external_user_id)
+    if not user or not user.voice_embedding:
+        return VerifyChallengeResponse(
+            challenge_id=challenge_id,
+            external_user_id=req.external_user_id,
+            status="failed",
+            confidence_score=0.0,
+            risk_level="high",
+            reasons=["user_not_enrolled"],
+        )
+
+    # Run real verification pipeline
+    try:
+        # Decode audio
+        audio_bytes = base64_to_bytes(req.audio_sample)
+        
+        # Layer 1: Create test embedding
+        test_embedding = create_embedding(audio_bytes)
+        
+        # Layer 2: Speaker verification
+        enrolled_embedding = parse_embedding(user.voice_embedding)
+        layer2_result = compare_embeddings(enrolled_embedding, test_embedding)
+        
+        # Layer 3: AI detection
+        layer3_result = detect_ai(audio_bytes)
+        
+        # Layer 4: Comprehension check (if phrase exists)
+        layer4_result = None
+        if ch.phrase:
+            layer4_result = comprehension_check(
+                audio_bytes,
+                ch.phrase,
+                similarity_score=layer2_result['similarity'],
+                ai_probability=layer3_result['ai_probability']
+            )
+        
+        # Make final decision
+        reasons = []
+        failed = False
+        
+        # Check Layer 2
+        if not layer2_result['match']:
+            failed = True
+            reasons.append(f"speaker_mismatch (similarity: {layer2_result['similarity']:.2f})")
+        
+        # Check Layer 3
+        if layer3_result['is_ai']:
+            failed = True
+            reasons.append(f"ai_detected (probability: {layer3_result['ai_probability']:.2f})")
+        
+        # Check Layer 4
+        if layer4_result and not layer4_result.get('skipped'):
+            if layer4_result.get('recommendation') == 'BLOCK':
+                failed = True
+                reasons.append(f"comprehension_failed: {layer4_result.get('reasoning', 'Unknown')}")
+            elif layer4_result.get('recommendation') == 'CHALLENGE_AGAIN':
+                failed = True
+                reasons.append(f"challenge_again: {layer4_result.get('reasoning', 'Unknown')}")
+        
+        # Calculate overall confidence
+        confidences = [layer2_result['confidence']]
+        if layer3_result.get('confidence') is not None:
+            confidences.append(layer3_result['confidence'])
+        if layer4_result and not layer4_result.get('skipped') and layer4_result.get('match_confidence') is not None:
+            confidences.append(layer4_result['match_confidence'])
+        
+        import numpy as np
+        overall_confidence = float(np.mean(confidences)) if confidences else 0.0
+        
+        # Determine status and risk
+        if failed:
+            status: VerifyStatus = "failed"
+            risk = "high"
+            if not reasons:
+                reasons = ["verification_failed"]
+        else:
+            status = "verified"
+            risk = "low"
+            reasons = ["all_layers_passed"]
+        
+    except Exception as e:
+        # Handle verification errors
+        return VerifyChallengeResponse(
+            challenge_id=challenge_id,
+            external_user_id=req.external_user_id,
+            status="failed",
+            confidence_score=0.0,
+            risk_level="high",
+            reasons=[f"verification_error: {str(e)}"],
+        )
 
     # Optional: store status while TTL remains
     store.set_challenge_status(tenant.tenant_id, challenge_id, status)
@@ -269,8 +361,10 @@ def verify_challenge(challenge_id: str, req: VerifyChallengeRequest, tenant: Ten
         challenge_id=challenge_id,
         external_user_id=req.external_user_id,
         status=status,
-        confidence_score=float(conf),
+        confidence_score=overall_confidence,
         risk_level=risk,
         reasons=reasons,
+        similarity=layer2_result['similarity'],
+        ai_probability=layer3_result['ai_probability'],
     )
 
