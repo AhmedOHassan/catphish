@@ -105,13 +105,13 @@ def _detect_with_aasist(audio_path: str) -> dict:
         
         from aasist_inference import AASISTDetector
         
-        detector = AASISTDetector(model_type='AASIST-L')
+        detector = AASISTDetector()
         result = detector.predict(audio_path)
         
         return {
             'ai_probability': result['ai_probability'],
             'confidence': result['confidence'],
-            'method': result.get('method', 'AASIST-L')
+            'method': 'AASIST'
         }
     except Exception:
         # AASIST unavailable - will use fallback
