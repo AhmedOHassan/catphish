@@ -1,5 +1,7 @@
 # catphish
 
+DEMO
+
 ## ⚠️ Important: AI Voice Detection Setup
 
 This project uses **AASIST** (Audio Anti-Spoofing) for AI voice detection with >95% accuracy. By default, it falls back to a simple heuristic with ~60-70% accuracy.
