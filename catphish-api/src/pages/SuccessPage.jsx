@@ -72,6 +72,18 @@ function SuccessPage() {
           <p style={styles.infoText}>
             🔒 Your voice biometric has been securely verified using Catphish technology.
           </p>
+          {result.solana_tx?.explorer_url && (
+            <p style={styles.infoText}>
+              ⛓️ <a
+                href={result.solana_tx.explorer_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={styles.solanaLink}
+              >
+                View audit trail on Solana
+              </a>
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -181,7 +193,13 @@ const styles = {
   infoText: {
     fontSize: '14px',
     color: '#1565c0',
-    margin: 0,
+    margin: '5px 0',
+  },
+  solanaLink: {
+    color: '#9945FF',
+    fontWeight: 'bold',
+    textDecoration: 'underline',
+  },
   },
   autoRedirect: {
     fontSize: '14px',
