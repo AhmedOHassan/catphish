@@ -200,7 +200,6 @@ const styles = {
     fontWeight: 'bold',
     textDecoration: 'underline',
   },
-  },
   autoRedirect: {
     fontSize: '14px',
     color: '#666',
