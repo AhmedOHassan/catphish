@@ -36,18 +36,12 @@ function FailurePage() {
   };
 
   const handleReturnToApp = () => {
-    // Get return URL from localStorage
-    const returnUrl = localStorage.getItem('catphish_return_url') || 'http://localhost:3000/dashboard';
-    
     // Clean up
     localStorage.removeItem('catphish_return_url');
+    localStorage.removeItem('pending_login_user');
     
-    // Redirect back to parent app with failure status
-    const url = new URL(returnUrl);
-    url.searchParams.set('verification_status', 'failure');
-    url.searchParams.set('session_id', `failed_${Date.now()}`);
-    
-    window.location.href = url.toString();
+    // Go straight to login page
+    window.location.href = 'http://localhost:3000/login';
   };
 
   const handleGoHome = () => {
