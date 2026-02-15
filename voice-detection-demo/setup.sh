@@ -16,13 +16,13 @@ if [ ! -f "enroll.py" ]; then
 fi
 
 # Step 1: Install Python dependencies
-echo "Step 1/5: Installing Python dependencies..."
+echo "Step 1/6: Installing Python dependencies..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 pip install -r requirements.txt
 echo ""
 
 # Step 2: Verify core packages
-echo "Step 2/5: Verifying installation..."
+echo "Step 2/6: Verifying installation..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 python3 -c "from resemblyzer import VoiceEncoder; print('✅ Resemblyzer')"
 python3 -c "import torch; print('✅ PyTorch')"
@@ -31,7 +31,7 @@ python3 -c "import soundfile; print('✅ SoundFile')"
 echo ""
 
 # Step 3: Setup environment file
-echo "Step 3/5: Setting up environment..."
+echo "Step 3/6: Setting up environment..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 if [ ! -f ".env" ]; then
     cp .env.example .env
@@ -48,8 +48,21 @@ else
 fi
 echo ""
 
-# Step 4: Setup AASIST model (Layer 3 AI Detection)
-echo "Step 4/5: Setting up AASIST model..."
+# Step 4: Download sample audio files
+echo "Step 4/6: Downloading sample audio files..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [ -f "download_samples.py" ]; then
+    python3 download_samples.py
+    echo "✅ Sample audio downloaded"
+else
+    echo "⚠️  download_samples.py not found"
+    echo "   Create test_audio directories manually and add .wav files"
+    mkdir -p test_audio/{enrollment,legitimate,different_speaker,ai_voice}
+fi
+echo ""
+
+# Step 5: Setup AASIST model (Layer 3 AI Detection)
+echo "Step 5/6: Setting up AASIST model..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 mkdir -p models/aasist/models/weights
 
@@ -65,26 +78,33 @@ if [ -f "models/aasist/models/weights/AASIST.pth" ]; then
     echo "✅ AASIST weights found ($(du -h models/aasist/models/weights/AASIST.pth | cut -f1))"
 else
     echo "⚠️  AASIST weights not found"
-    echo "   The system will attempt to download weights on first run."
-    echo "   If that fails, download manually from AASIST releases and place at:"
-    echo "   models/aasist/models/weights/AASIST.pth"
+    echo "   The system will use fallback heuristic (less accurate)"
+    echo "   To add AASIST:"
+    echo "   1. Download weights from AASIST releases"
+    echo "   2. Place at: models/aasist/models/weights/AASIST.pth"
 fi
 echo ""
 
-# Step 5: Create demo profile (if enrollment audio exists)
-echo "Step 5/5: Creating demo voice profile..."
+# Step 6: Create demo profile (if enrollment audio exists)
+echo "Step 6/6: Creating demo voice profile..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-ENROLLMENT_FILES=$(find test_audio/enrollment -name "*.wav" 2>/dev/null | head -1)
-if [ -n "$ENROLLMENT_FILES" ]; then
+
+ENROLLMENT_COUNT=$(ls test_audio/enrollment/*.wav 2>/dev/null | wc -l)
+if [ "$ENROLLMENT_COUNT" -ge 3 ]; then
+    echo "Found $ENROLLMENT_COUNT enrollment audio files"
     if python3 enroll.py test_audio/enrollment/*.wav -o demo_profile.json 2>&1; then
-        echo "✅ Demo profile created"
+        echo "✅ Demo profile created successfully"
     else
         echo "⚠️  Profile creation had issues - you can try again manually:"
         echo "   python enroll.py test_audio/enrollment/*.wav -o demo_profile.json"
     fi
 else
-    echo "⚠️  No enrollment audio found in test_audio/enrollment/"
-    echo "   Add your own .wav files and run: python enroll.py test_audio/enrollment/*.wav"
+    echo "⚠️  Need at least 3 audio files for enrollment (found: $ENROLLMENT_COUNT)"
+    if [ "$ENROLLMENT_COUNT" -eq 0 ]; then
+        echo "   Run: python download_samples.py"
+    else
+        echo "   Add more .wav files to test_audio/enrollment/"
+    fi
 fi
 echo ""
 
@@ -105,13 +125,19 @@ fi
 if [ -f "models/aasist/models/weights/AASIST.pth" ]; then
     echo "   ✅ AASIST model weights"
 else
-    echo "   ⚠️  AASIST weights - will download on first use"
+    echo "   ⚠️  AASIST weights - will use fallback heuristic"
+fi
+
+if [ "$ENROLLMENT_COUNT" -ge 3 ]; then
+    echo "   ✅ Sample audio files ($ENROLLMENT_COUNT files)"
+else
+    echo "   ⚠️  Sample audio - run: python download_samples.py"
 fi
 
 if [ -f "demo_profile.json" ]; then
     echo "   ✅ Demo voice profile"
 else
-    echo "   ⚠️  Demo profile - create with: python enroll.py <audio_files>"
+    echo "   ⚠️  Demo profile - create after adding audio files"
 fi
 
 echo ""
