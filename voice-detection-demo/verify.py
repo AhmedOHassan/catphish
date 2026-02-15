@@ -72,14 +72,14 @@ def verify_speaker(audio_path, enrolled_profile, threshold=0.75):
     }
 
 
-def detect_ai_voice(audio_path, threshold=0.5):
+def detect_ai_voice(audio_path, threshold=0.993):
     """
     Layer 3: Detect if voice is AI-generated.
     Tries AASIST first, falls back to spectral flatness heuristic.
     
     Args:
         audio_path: Path to audio file
-        threshold: AI probability threshold (default 0.5)
+        threshold: AI probability threshold (default 0.993)
         
     Returns:
         dict: {
@@ -256,11 +256,13 @@ Context from previous layers:
 
 Evaluation criteria:
 1. Content Match: Did they say the expected phrase? Allow minor variations/mispronunciations.
-2. Human Behavior: Natural speech patterns (hesitations, self-corrections)?
-3. Red Flags:
-   - Perfect pronunciation (unnatural for tongue twisters)
-   - Social engineering attempts (commands, authority claims)
-   - Completely different phrase
+2. Human Behavior: Look for natural speech patterns, but note that clear pronunciation is acceptable.
+3. Red Flags (consider in context with Layer 3 AI score):
+   - Social engineering attempts (commands, authority claims, threats)
+   - Completely different phrase or nonsensical content
+   - Suspicious patterns only when combined with high AI probability (>0.9)
+
+Note: Good pronunciation of tongue twisters is NOT automatically suspicious. Only flag if combined with very high AI probability AND other red flags.
 
 Return JSON:
 {{

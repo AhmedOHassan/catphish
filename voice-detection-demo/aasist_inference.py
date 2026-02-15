@@ -38,6 +38,7 @@ class AASISTDetector:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         # Model configuration (from AASIST.conf)
+        # Original AASIST model - more accurate than AASIST-L
         self.model_config = {
             "architecture": "AASIST",
             "nb_samp": 64600,
@@ -93,7 +94,8 @@ class AASISTDetector:
         
         # Run inference
         with torch.no_grad():
-            output = self.model(audio_tensor)
+            # Model returns (last_hidden, output)
+            _, output = self.model(audio_tensor, Freq_aug=False)
             
             # Output is [batch, 2] logits for [bonafide, spoof]
             # Apply softmax to get probabilities
