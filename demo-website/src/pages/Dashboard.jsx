@@ -66,7 +66,7 @@ function Dashboard() {
   }
 
   // Fake banking data
-  const balance = '$12,543.87';
+  const balance = '$10,222,543.87';
   const transactions = [
     { id: 1, name: 'Starbucks Coffee', amount: '-$5.67', date: '2026-02-14', type: 'debit' },
     { id: 2, name: 'Direct Deposit', amount: '+$2,500.00', date: '2026-02-13', type: 'credit' },

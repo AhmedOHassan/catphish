@@ -13,6 +13,7 @@ function VerificationPage() {
   const [returnUrl, setReturnUrl] = useState('');
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [phrase, setPhrase] = useState('');
+  const [phraseType, setPhraseType] = useState('');  // 'enrollment' | 'verification'
   const [errorMsg, setErrorMsg] = useState('');
 
   // Processing state
@@ -51,6 +52,7 @@ function VerificationPage() {
       setReturnUrl(data.return_url || '');
       setIsEnrolled(data.enrolled);
       setPhrase(data.phrase);
+      setPhraseType(data.phrase_type || (data.enrolled ? 'verification' : 'enrollment'));
 
       // Store return_url so Success/Failure pages can use it
       if (data.return_url) {
@@ -142,13 +144,23 @@ function VerificationPage() {
         <div style={styles.messageBox}>
           <p style={styles.message}>
             {isEnrolled
-              ? 'Welcome back! Please verify your identity by saying the phrase below.'
-              : 'To protect your account from AI voice fraud, please say the following phrase:'}
+              ? 'Welcome back! Please follow the instruction below carefully.'
+              : 'To protect your account from AI voice fraud, please read the following phrase clearly:'}
           </p>
 
-          <div style={styles.phraseBox}>
-            <p style={styles.phrase}>"{phrase}"</p>
-          </div>
+          {phraseType === 'verification' ? (
+            <div style={styles.instructionBox}>
+              <div style={styles.instructionLabel}>📋 Follow this instruction:</div>
+              <p style={styles.instruction}>{phrase}</p>
+              <div style={styles.instructionHint}>
+                ⚡ Don't just read it — follow the instruction!
+              </div>
+            </div>
+          ) : (
+            <div style={styles.phraseBox}>
+              <p style={styles.phrase}>"{phrase}"</p>
+            </div>
+          )}
         </div>
 
         {/* Microphone error */}
@@ -241,6 +253,22 @@ const styles = {
   phrase: {
     fontSize: '24px', fontWeight: 'bold', color: '#2c3e50',
     textAlign: 'center', fontStyle: 'italic', margin: 0,
+  },
+  instructionBox: {
+    backgroundColor: '#fff8e1', border: '2px solid #ff9800',
+    borderRadius: '8px', padding: '20px', marginTop: '15px',
+  },
+  instructionLabel: {
+    fontSize: '14px', fontWeight: 'bold', color: '#e65100',
+    textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px',
+  },
+  instruction: {
+    fontSize: '22px', fontWeight: 'bold', color: '#2c3e50',
+    textAlign: 'center', margin: '10px 0', lineHeight: '1.5',
+  },
+  instructionHint: {
+    fontSize: '14px', color: '#bf360c', textAlign: 'center',
+    marginTop: '12px', fontStyle: 'italic',
   },
   buttonContainer: {
     display: 'flex', flexDirection: 'column', gap: '15px',

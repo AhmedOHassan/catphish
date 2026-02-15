@@ -24,8 +24,8 @@ import logging
 from db.valkey_store import ValkeyStore, Tenant
 from voice.encoder import create_embedding
 from voice.verification import compare_embeddings
-from voice.ai_detection import detect_ai
 from voice.comprehension import comprehension_check
+from voice.phrase_generator import generate_verification_phrase, get_enrollment_phrase
 from voice.audio_utils import base64_to_bytes
 
 load_dotenv()
@@ -123,7 +123,6 @@ class VerifyChallengeResponse(BaseModel):
     risk_level: Literal["low", "medium", "high"]
     reasons: List[str]
     similarity: Optional[float] = None
-    ai_probability: Optional[float] = None
 
 
 class HealthResponse(BaseModel):
@@ -155,6 +154,9 @@ class SessionStatusResponse(BaseModel):
     return_url: Optional[str]
     enrolled: bool
     phrase: str
+    instruction: Optional[str] = None
+    expected_behavior: Optional[str] = None
+    phrase_type: Optional[str] = None  # 'enrollment' | 'verification'
 
 
 class SessionEnrollRequest(BaseModel):
@@ -176,7 +178,7 @@ class SessionVerifyResponse(BaseModel):
     message: str
     confidence_score: Optional[float] = None
     similarity: Optional[float] = None
-    ai_probability: Optional[float] = None
+    comprehension: Optional[dict] = None
     reasons: Optional[List[str]] = None
 
 
@@ -429,47 +431,42 @@ def verify_challenge(
         audio_bytes = base64_to_bytes(req.audio_sample)
         test_embedding = create_embedding(audio_bytes)
         enrolled_embedding = parse_embedding(user.voice_embedding)
-        layer2_result = compare_embeddings(enrolled_embedding, test_embedding)
-        layer3_result = detect_ai(audio_bytes)
-        layer4_result = None
+
+        # Layer 1 — speaker similarity
+        layer1_result = compare_embeddings(enrolled_embedding, test_embedding)
+
+        # Layer 2 — comprehension check (if phrase exists)
+        layer2_result = None
         if ch.phrase:
-            layer4_result = comprehension_check(
-                audio_bytes,
-                ch.phrase,
-                similarity_score=layer2_result["similarity"],
-                ai_probability=layer3_result["ai_probability"],
+            challenge = generate_verification_phrase()
+            layer2_result = comprehension_check(
+                audio_data=audio_bytes,
+                instruction=challenge['instruction'],
+                expected_behavior=challenge['expected_behavior'],
+                similarity_score=layer1_result["similarity"],
             )
 
         reasons: list[str] = []
         failed = False
 
-        if not layer2_result["match"]:
+        if not layer1_result["match"]:
             failed = True
-            reasons.append(f"speaker_mismatch (similarity: {layer2_result['similarity']:.2f})")
-        if layer3_result["is_ai"]:
-            failed = True
-            reasons.append(f"ai_detected (probability: {layer3_result['ai_probability']:.2f})")
-        if layer4_result and not layer4_result.get("skipped"):
-            if layer4_result.get("recommendation") == "BLOCK":
+            reasons.append(f"speaker_mismatch (similarity: {layer1_result['similarity']:.2f})")
+        if layer2_result and not layer2_result.get("skipped"):
+            if layer2_result.get("recommendation") == "BLOCK":
                 failed = True
-                reasons.append(f"comprehension_failed: {layer4_result.get('reasoning', 'Unknown')}")
-            elif layer4_result.get("recommendation") == "CHALLENGE_AGAIN":
+                reasons.append(f"comprehension_failed: {layer2_result.get('reasoning', 'Unknown')}")
+            elif layer2_result.get("recommendation") == "CHALLENGE_AGAIN":
                 failed = True
-                reasons.append(f"challenge_again: {layer4_result.get('reasoning', 'Unknown')}")
+                reasons.append(f"challenge_again: {layer2_result.get('reasoning', 'Unknown')}")
 
-        confidences = [layer2_result["confidence"]]
-        if layer3_result.get("confidence") is not None:
-            confidences.append(layer3_result["confidence"])
+        overall_confidence = layer1_result["confidence"]
         if (
-            layer4_result
-            and not layer4_result.get("skipped")
-            and layer4_result.get("match_confidence") is not None
+            layer2_result
+            and not layer2_result.get("skipped")
+            and layer2_result.get("confidence") is not None
         ):
-            confidences.append(layer4_result["match_confidence"])
-
-        import numpy as np
-
-        overall_confidence = float(np.mean(confidences)) if confidences else 0.0
+            overall_confidence = (overall_confidence + float(layer2_result["confidence"])) / 2.0
 
         if failed:
             status: VerifyStatus = "failed"
@@ -500,8 +497,7 @@ def verify_challenge(
         confidence_score=overall_confidence,
         risk_level=risk,
         reasons=reasons,
-        similarity=layer2_result["similarity"],
-        ai_probability=layer3_result["ai_probability"],
+        similarity=layer1_result["similarity"],
     )
 
 
@@ -539,13 +535,27 @@ def session_status(session_id: str):
     session = _resolve_session(session_id)
     user = store.get_user(session.tenant_id, session.external_user_id)
     enrolled = bool(user and user.voice_embedding)
-    phrase = generate_phrase()
+
+    # Enrollment → Stella phrase (all phonemes).  Verification → anti-TTS instruction.
+    if enrolled:
+        challenge = generate_verification_phrase()
+        phrase = challenge['instruction']
+        instruction = challenge['instruction']
+        expected_behavior = challenge['expected_behavior']
+        phrase_type = 'verification'
+    else:
+        phrase = get_enrollment_phrase()
+        instruction = phrase
+        expected_behavior = 'The speaker should read the Stella passage clearly.'
+        phrase_type = 'enrollment'
+
     log.info(f"   external_user_id: {session.external_user_id}")
     log.info(f"   return_url:       {session.return_url}")
     log.info(f"   enrolled:         {'YES ✅ (returning user → verify flow)' if enrolled else 'NO ❌ (new user → enrollment flow)'}")
     if enrolled:
         emb_preview = str(user.voice_embedding)[:80] + "..." if user and user.voice_embedding else "N/A"
         log.info(f"   stored embedding: {emb_preview}")
+    log.info(f"   phrase_type:      {phrase_type}")
     log.info(f"   phrase:           \"{phrase}\"")
     log.info("━"*55)
     return SessionStatusResponse(
@@ -554,6 +564,9 @@ def session_status(session_id: str):
         return_url=session.return_url,
         enrolled=enrolled,
         phrase=phrase,
+        instruction=instruction,
+        expected_behavior=expected_behavior,
+        phrase_type=phrase_type,
     )
 
 
@@ -663,53 +676,73 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
         enrolled_embedding = parse_embedding(user.voice_embedding)
         log.info(f"   📦 Enrolled embedding: dim={len(enrolled_embedding)}, first 3={enrolled_embedding[:3]}")
 
-        # Layer 2 — speaker similarity
+        # ── Layer 1 — Speaker Similarity (Resemblyzer) ──
         log.info("   ──────────────────────────────────────")
-        log.info("   🔊 LAYER 2: Speaker Similarity (cosine)")
-        layer2 = compare_embeddings(enrolled_embedding, test_embedding)
-        log.info(f"      similarity:  {layer2['similarity']:.4f}")
-        log.info(f"      threshold:   {layer2['threshold']}")
-        log.info(f"      match:       {'YES ✅' if layer2['match'] else 'NO ❌'}")
-        log.info(f"      confidence:  {layer2['confidence']:.4f}")
+        log.info("   🔊 LAYER 1: Speaker Similarity (cosine)")
+        layer1 = compare_embeddings(enrolled_embedding, test_embedding)
+        log.info(f"      similarity:  {layer1['similarity']:.4f}")
+        log.info(f"      threshold:   {layer1['threshold']}")
+        log.info(f"      match:       {'YES ✅' if layer1['match'] else 'NO ❌'}")
+        log.info(f"      confidence:  {layer1['confidence']:.4f}")
 
-        # Layer 3 — AI detection
+        # ── Layer 2 — Human Comprehension via Gemini ──
+        # Generate the same kind of challenge phrase the frontend showed
+        # (We rely on the session_status having provided the phrase to the user)
         log.info("   ──────────────────────────────────────")
-        log.info("   🤖 LAYER 3: AI Voice Detection")
-        layer3 = detect_ai(audio_bytes)
-        log.info(f"      method:         {layer3.get('method', 'unknown')}")
-        log.info(f"      ai_probability: {layer3['ai_probability']:.4f}")
-        log.info(f"      threshold:      {layer3.get('threshold', 'N/A')}")
-        log.info(f"      is_ai:          {'YES 🚨' if layer3['is_ai'] else 'NO ✅ (human)'}")
-        log.info(f"      confidence:     {layer3.get('confidence', 'N/A')}")
-        if layer3.get('warning'):
-            log.warning(f"      ⚠️  {layer3['warning']}")
+        log.info("   🧠 LAYER 2: Human Comprehension (Gemini)")
+        # Generate a fresh challenge for comprehension check context
+        challenge = generate_verification_phrase()
+        instruction = challenge['instruction']
+        expected_behavior = challenge['expected_behavior']
+        log.info(f"      instruction: {instruction}")
 
-        # Decision
+        layer2 = comprehension_check(
+            audio_data=audio_bytes,
+            instruction=instruction,
+            expected_behavior=expected_behavior,
+            similarity_score=layer1['similarity'],
+        )
+        log.info(f"      followed_instruction: {layer2.get('followed_instruction', 'N/A')}")
+        log.info(f"      confidence:            {layer2.get('confidence', 'N/A')}")
+        log.info(f"      recommendation:        {layer2.get('recommendation', 'N/A')}")
+        log.info(f"      reasoning:             {layer2.get('reasoning', 'N/A')}")
+        if layer2.get('red_flags'):
+            log.warning(f"      🚩 red_flags: {layer2['red_flags']}")
+        if layer2.get('skipped'):
+            log.warning(f"      ⚠️  Comprehension skipped: {layer2.get('reason', 'unknown')}")
+
+        # ── Decision Engine ──
         log.info("   ──────────────────────────────────────")
-        log.info("   🧠 DECISION ENGINE")
+        log.info("   🧠 DECISION ENGINE (2-layer)")
         reasons: list[str] = []
         failed = False
 
-        if not layer2["match"]:
+        # Layer 1 check
+        if not layer1["match"]:
             failed = True
-            reasons.append(f"Speaker mismatch (similarity: {layer2['similarity']:.2f})")
-            log.info(f"      ❌ FAIL: speaker mismatch (sim={layer2['similarity']:.4f} < threshold)")
+            reasons.append(f"Speaker mismatch (similarity: {layer1['similarity']:.2f})")
+            log.info(f"      ❌ FAIL: speaker mismatch (sim={layer1['similarity']:.4f} < threshold)")
         else:
-            log.info(f"      ✅ PASS: speaker match (sim={layer2['similarity']:.4f})")
+            log.info(f"      ✅ PASS: speaker match (sim={layer1['similarity']:.4f})")
 
-        if layer3["is_ai"]:
-            failed = True
-            reasons.append(f"AI voice detected (probability: {layer3['ai_probability']:.2f})")
-            log.info(f"      ❌ FAIL: AI detected (prob={layer3['ai_probability']:.4f})")
+        # Layer 2 check (skip if Gemini key not configured)
+        if not layer2.get('skipped'):
+            if layer2.get('recommendation') == 'BLOCK':
+                failed = True
+                reasons.append(f"Comprehension failed: {layer2.get('reasoning', 'TTS/AI behavior detected')}")
+                log.info(f"      ❌ FAIL: comprehension BLOCK — {layer2.get('reasoning', '')}")
+            elif layer2.get('recommendation') == 'CHALLENGE_AGAIN':
+                failed = True
+                reasons.append(f"Unclear response: {layer2.get('reasoning', 'Please try again')}")
+                log.info(f"      ⚠️ FAIL: comprehension CHALLENGE_AGAIN — {layer2.get('reasoning', '')}")
+            else:
+                log.info(f"      ✅ PASS: comprehension ALLOW (confidence={layer2.get('confidence', 0):.2f})")
         else:
-            log.info(f"      ✅ PASS: human voice (ai_prob={layer3['ai_probability']:.4f})")
+            log.info(f"      ⏭️ SKIP: comprehension layer skipped ({layer2.get('reason', '')})")
 
-        confidences = [layer2["confidence"]]
-        if layer3.get("confidence") is not None:
-            confidences.append(layer3["confidence"])
-
-        import numpy as np
-        overall = float(np.mean(confidences)) if confidences else 0.0
+        overall = layer1["confidence"]
+        if not layer2.get('skipped') and layer2.get('confidence') is not None:
+            overall = (layer1["confidence"] + float(layer2["confidence"])) / 2.0
         log.info(f"      overall confidence: {overall:.4f}")
 
         log.info("   ──────────────────────────────────────")
@@ -720,22 +753,21 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
                 status="failed",
                 message="Verification failed — voice did not pass security checks.",
                 confidence_score=overall,
-                similarity=layer2["similarity"],
-                ai_probability=layer3["ai_probability"],
+                similarity=layer1["similarity"],
+                comprehension=layer2 if not layer2.get('skipped') else None,
                 reasons=reasons or ["verification_failed"],
             )
 
         log.info("   ✅ VERDICT: VERIFIED — all security checks passed!")
-        log.info(f"      similarity:     {layer2['similarity']:.4f}")
-        log.info(f"      ai_probability: {layer3['ai_probability']:.4f}")
-        log.info(f"      confidence:     {overall:.4f}")
+        log.info(f"      similarity:  {layer1['similarity']:.4f}")
+        log.info(f"      confidence:  {overall:.4f}")
         log.info("🔵" + "="*53)
         return SessionVerifyResponse(
             status="verified",
             message="Voice verified successfully!",
             confidence_score=overall,
-            similarity=layer2["similarity"],
-            ai_probability=layer3["ai_probability"],
+            similarity=layer1["similarity"],
+            comprehension=layer2 if not layer2.get('skipped') else None,
             reasons=["all_checks_passed"],
         )
 

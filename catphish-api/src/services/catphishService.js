@@ -18,7 +18,7 @@ export async function getSessionStatus(sessionId) {
     throw new Error(err.detail || `Session status failed: ${res.status}`);
   }
   return res.json();
-  // → { session_id, external_user_id, return_url, enrolled, phrase }
+  // → { session_id, external_user_id, return_url, enrolled, phrase, instruction, expected_behavior, phrase_type }
 }
 
 /**
@@ -56,7 +56,7 @@ export async function verifyVoice(sessionId, audioBase64) {
     throw new Error(err.detail || `Verification failed: ${res.status}`);
   }
   return res.json();
-  // → { status, message, confidence_score, similarity, ai_probability, reasons }
+  // → { status, message, confidence_score, similarity, comprehension, reasons }
 }
 
 /**

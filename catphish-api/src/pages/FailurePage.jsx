@@ -89,12 +89,6 @@ function FailurePage() {
             <span style={styles.detailLabel}>Timestamp:</span>
             <span style={styles.detailValue}>{new Date().toLocaleString()}</span>
           </div>
-          {result.ai_probability != null && (
-            <div style={styles.detailRow}>
-              <span style={styles.detailLabel}>AI Probability:</span>
-              <span style={styles.detailValue}>{(result.ai_probability * 100).toFixed(1)}%</span>
-            </div>
-          )}
           {result.similarity != null && (
             <div style={styles.detailRow}>
               <span style={styles.detailLabel}>Voice Similarity:</span>
