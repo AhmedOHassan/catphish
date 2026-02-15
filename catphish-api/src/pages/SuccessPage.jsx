@@ -59,21 +59,6 @@ function SuccessPage() {
             : 'Your voice has been successfully verified. Access granted.'}
         </p>
 
-        <div style={styles.detailsBox}>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Status:</span>
-            <span style={styles.detailValue}>✅ Verified</span>
-          </div>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Timestamp:</span>
-            <span style={styles.detailValue}>{new Date().toLocaleString()}</span>
-          </div>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Session ID:</span>
-            <span style={styles.detailValue}>demo_session_{Date.now()}</span>
-          </div>
-        </div>
-
         <div style={styles.buttonContainer}>
           <button 
             onClick={handleReturnToApp}
