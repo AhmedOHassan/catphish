@@ -49,19 +49,16 @@ function LoginPage() {
 
     try {
       console.log('🔐 Login successful, calling Catphish API...');
-      const response = await createVerificationSession(result.user.id);
-
-      if (response.status === 200) {
-        // Verification successful
-        console.log('✅ Verification successful!');
-        setCurrentUser(result.user);
-        navigate('/dashboard');
-      } else {
-        // Verification failed
-        console.log('❌ Verification failed');
-        setError('Voice verification failed. Please try again.');
-        setVerifying(false);
-      }
+      
+      // Save user data temporarily before redirect
+      localStorage.setItem('pending_login_user', JSON.stringify(result.user));
+      
+      // This will redirect to catphish-api, so code after it won't execute
+      await createVerificationSession(result.user.id);
+      
+      // Note: Code below only runs if redirect fails
+      setError('Failed to redirect to verification');
+      setVerifying(false);
     } catch (err) {
       console.error('Error during verification:', err);
       setError('An error occurred during verification');
@@ -87,7 +84,8 @@ function LoginPage() {
           {verifying && (
             <div className="verifying-message">
               <div className="spinner"></div>
-              <p>🎤 Verifying your identity...</p>
+              <p>🎤 Redirecting to voice verification...</p>
+              <p style={{fontSize: '14px', color: '#666'}}>You'll be redirected to complete voice verification</p>
             </div>
           )}
 
