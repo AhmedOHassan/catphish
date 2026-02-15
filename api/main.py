@@ -204,7 +204,7 @@ def create_verification_session(req: CreateVerificationSessionRequest, tenant: T
     )
 
 
-@app.get(f"/{API_VERSION}/verification-sessions" + "/{session_id}", response_model=GetVerificationSessionResponse)
+@app.get(f"/{API_VERSION}/verification-sessions/{{session_id}}", response_model=GetVerificationSessionResponse)
 def get_verification_session(session_id: str, tenant: Tenant = Depends(require_tenant)):
     """
     Get verification session information by session_id.

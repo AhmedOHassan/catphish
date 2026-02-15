@@ -292,11 +292,16 @@ class ValkeyStore:
         if not data:
             return None
         
+        try:
+            created_at = int(data.get("created_at", "0"))
+        except (ValueError, TypeError):
+            created_at = 0
+        
         return VerificationSession(
             session_id=session_id,
             tenant_id=data.get("tenant_id", ""),
             external_user_id=data.get("external_user_id", ""),
             return_url=data.get("return_url") or None,
-            created_at=int(data.get("created_at", "0")),
+            created_at=created_at,
         )
 
