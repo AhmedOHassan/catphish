@@ -19,8 +19,20 @@ function FailurePage() {
       ];
 
   const handleRetry = () => {
-    // Go back to verification page to try again
-    navigate('/verify');
+    // Go back to verification page with the same session to retry
+    const sid = location.state?.sessionId;
+    if (sid) {
+      navigate(`/verify?session_id=${sid}`);
+    } else {
+      // No session available — redirect to parent app to start fresh
+      const returnUrl = localStorage.getItem('catphish_return_url');
+      if (returnUrl) {
+        localStorage.removeItem('catphish_return_url');
+        window.location.href = returnUrl;
+      } else {
+        window.location.href = 'http://localhost:3000/login';
+      }
+    }
   };
 
   const handleReturnToApp = () => {

@@ -28,8 +28,17 @@ function SuccessPage() {
   };
 
   const handleNewVerification = () => {
-    // Start a new verification session
-    navigate('/verify');
+    // Redirect back to parent app so it can create a new verification session
+    const returnUrl = localStorage.getItem('catphish_return_url');
+    if (returnUrl) {
+      localStorage.removeItem('catphish_return_url');
+      const url = new URL(returnUrl);
+      url.searchParams.set('verification_status', 'new_request');
+      window.location.href = url.toString();
+    } else {
+      // No return URL — go to demo-website login to start fresh
+      window.location.href = 'http://localhost:3000/login';
+    }
   };
 
   const handleGoHome = () => {

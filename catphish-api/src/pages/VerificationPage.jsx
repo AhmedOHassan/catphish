@@ -78,7 +78,7 @@ function VerificationPage() {
         if (result.status === 'verified') {
           navigate('/success', { state: { result } });
         } else {
-          navigate('/failure', { state: { result } });
+          navigate('/failure', { state: { result, sessionId } });
         }
       } else {
         // New user → enroll
@@ -86,7 +86,7 @@ function VerificationPage() {
         if (result.success) {
           navigate('/success', { state: { result, enrollment: true } });
         } else {
-          navigate('/failure', { state: { result } });
+          navigate('/failure', { state: { result, sessionId } });
         }
       }
     } catch (err) {
