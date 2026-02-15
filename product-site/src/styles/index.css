@@ -234,6 +234,116 @@ main {
   transform: translateY(0);
 }
 
+/* Page Layouts */
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  padding-top: 10rem;
+  text-align: center;
+}
+
+.page-title {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #e8e8e8 20%,
+    #a8a8a8 40%,
+    #c0c0c0 50%,
+    #e8e8e8 60%,
+    #a0a0a0 80%,
+    #d0d0d0 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Navbar Link Styles */
+.navbar-tab {
+  text-decoration: none;
+}
+
+/* Team Page */
+.team-grid {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 3rem;
+  margin-top: 3rem;
+  flex-wrap: wrap;
+}
+
+.team-member {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.team-member-image {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  transition: border-color 0.3s ease;
+}
+
+.team-member:hover .team-member-image {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.team-member-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-member-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-white);
+  transition: color 0.3s ease;
+}
+
+.team-member:hover .team-member-name {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Team Title Styling */
+.team-title {
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+}
+
+.title-light {
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.title-bold {
+  font-weight: 800;
+  color: var(--color-white);
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
   .header {
@@ -277,5 +387,18 @@ main {
 
   .hero-description {
     margin-bottom: 2rem;
+  }
+
+  .team-grid {
+    gap: 2rem;
+  }
+
+  .team-member-image {
+    width: 120px;
+    height: 120px;
+  }
+
+  .team-member-name {
+    font-size: 1rem;
   }
 }
