@@ -1,128 +1,95 @@
-# catphish
+# Catphish: Multi-Layer Voice Verification & Anti-Deepfake System
 
-DEMO
+Catphish is a proof-of-concept platform for **voice-based user authentication and anti-deepfake detection**, including demo web apps, API backend, and a 4-layer verification system to prevent AI-generated audio attacks.
 
-## ⚠️ Important: AI Voice Detection Setup
-
-This project uses **AASIST** (Audio Anti-Spoofing) for AI voice detection with >95% accuracy. By default, it falls back to a simple heuristic with ~60-70% accuracy.
-
-### Quick AASIST Setup Check
-
-```bash
-python3 check_aasist_setup.py
-```
-
-### Enable AASIST (Recommended for Production)
-
-```bash
-cd voice-detection-demo
-./setup.sh
-```
-
-For detailed setup instructions, see [AASIST_SETUP.md](AASIST_SETUP.md)
+![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
+![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=fff)
 
 ---
 
-## Make sure you have a .env
+## 🏗 Project Structure
 
-## python -m venv .venv
-
-## pip install -r requirements.txt
-
-## Running the Full Demo
-
-To run the complete demo with voice verification:
-
-### 1) Start Valkey
-```bash
-docker compose up -d
+```
+/
+├── api/                          # API server code (Python FastAPI)
+├── catphish-api/                 # React client for voice verification
+├── voice-detection-demo/         # 4-layer Python verification demo
+│   └── test_audio/               # Audio sample instructions
+├── demo-website/                 # Demo banking webapp (React)
+├── db/                           # Database resources (Valkey/Redis)
+├── docker-compose.yml            # Multi-service orchestration
+├── scripts/                      # Utility scripts
+├── docs/                         # Internal documentation
+├── product-site/                 # Marketing site
+├── product-trailer/              # Testing Verification
 ```
 
-### 2) Seed demo data
+---
+
+## 🎯 What is Catphish?
+
+Catphish demonstrates secure user authentication with _voice biometrics_, focusing on identifying and thwarting AI-generated (deepfake) audio attacks. The system includes:
+- **Voice enrollment and verification (real and simulated)**
+- **API backend with Python and FastAPI**
+- **2-layer defense:**
+  - Speaker verification
+  - Comprehension: Google Gemini AI for phrase analysis
+- **Demo web apps and banking site for real-world workflows**
+
+---
+
+## 🚀 Quick Start
+
+### 1. Catphish API Backend (Python)
+
 ```bash
-./scripts/seed-valkey.sh
+docker compose up # Start Valkey
+./scripts/seed-valkey.sh # Seed data
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000 # Start API
 ```
 
-### 3) Start the backend API (Terminal 1)
-```bash
-uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
-```
+### 2. Catphish API Frontend (React)
 
-### 4) Start the catphish-api frontend (Terminal 2)
 ```bash
 cd catphish-api
-npm install  # first time only
-npm run dev -- --port 3001
+npm install
+npm run dev
 ```
+Opens on http://localhost:3001
 
-### 5) Start the demo-website frontend (Terminal 3)
+### 3. SecureBank Demo Site
+
 ```bash
 cd demo-website
-npm install  # first time only
-npm run dev -- --port 3000
+npm install
+npm run dev
 ```
+Opens on http://localhost:3000
 
-### 6) Access the demo
-- Open http://localhost:3000 in your browser
-- Sign up and login to test the voice verification flow
-- The verification will use session-based URLs (only session_id visible)
+This site demonstrates integration with Catphish for secure flow (sign up, login, bank dashboard, voice verification prompt).
 
-## Quickstart (Valkey)
+---
 
-## 1) Start Valkey
-```bash
-docker compose up -d
-```
+## 🛡 Features
 
-## 2) Seed demo data
-```bash
-./scripts/seed-valkey.sh
-```
+- **Layered voice authentication:** Combines multiple voice/ML checks for robust security.
+- **Deepfake detection:** Blocks many common attacks by distinguishing synthetic from real speech.
+- **Web-based demo:** See verification flows and banking integration in the browser (React).
+- **API-centric design:** Modular backend for future real deployments.
+- **Dockerized:** Orchestrate backend/frontend/Redis (Valkey) with one command.
 
-## 3) Verify
-```bash
-docker exec -it catphish-valkey valkey-cli PING
-docker exec -it catphish-valkey valkey-cli HGETALL tenant:by_api_key:demo_key_123
-```
+---
 
-## Test the backend
+## 🧪 Example User Flows
 
-## 1) Start the backend
-```bash
-uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
-```
+### Voice Verification Web UI
 
-## 2) Check health
-```bash
-curl http://127.0.0.1:8000/health
-```
+- **New user:** Prompted to enroll voice sample.
+- **Returning user:** Prompts for verification phrase, simulates attack/failure scenarios.
+- **Demo site:** Bank website UI triggers verification via REST API and redirects to Catphish for secure voice check.
 
-## 3) Manual curl test
+---
 
-### 3A) Enroll
+## 👨‍💻 Authors & Credits
 
-```bash
-curl -s -X POST http://127.0.0.1:8000/v1/enroll \
-  -H "Content-Type: application/json" \
-  -H "X-Catphish-Key: demo_key_123" \
-  -d '{"external_user_id":"user_001","audio_sample":"AAAA...fakebase64...BBBB","metadata":{"reason":"demo"}}' | jq
-```
-
-### 3B) Create Challenge
-```bash
-curl -s -X POST http://127.0.0.1:8000/v1/challenges \
-  -H "Content-Type: application/json" \
-  -H "X-Catphish-Key: demo_key_123" \
-  -d '{"external_user_id":"user_001","purpose":"login","ttl_seconds":120}' | jq
-```
-
-### 3C) Verify Challenge
-
-Fill in challenge id
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/v1/challenges/ch_XXXXXXXX/verify \
-  -H "Content-Type: application/json" \
-  -H "X-Catphish-Key: demo_key_123" \
-  -d '{"external_user_id":"user_001","audio_sample":"AAAA...fakebase64...BBBB"}' | jq
-```
+Catphish is maintained by AhmedOHassan, Tristan Curtis, Rameez Malik, Nolan Witt
