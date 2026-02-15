@@ -72,14 +72,6 @@ function FailurePage() {
           {result.message || errorMessage || "We couldn't verify your voice. This could be due to several reasons:"}
         </p>
 
-        <div style={styles.reasonsBox}>
-          <ul style={styles.reasonsList}>
-            {displayReasons.map((reason, i) => (
-              <li key={i} style={styles.reasonItem}>{reason}</li>
-            ))}
-          </ul>
-        </div>
-
         <div style={styles.detailsBox}>
           <div style={styles.detailRow}>
             <span style={styles.detailLabel}>Status:</span>

@@ -25,7 +25,7 @@ from db.valkey_store import ValkeyStore, Tenant
 from voice.encoder import create_embedding
 from voice.verification import compare_embeddings
 from voice.comprehension import comprehension_check
-from voice.phrase_generator import generate_verification_phrase, get_enrollment_phrase
+from voice.phrase_generator import generate_verification_phrase, generate_enrollment_phrases, get_enrollment_phrase
 from voice.audio_utils import base64_to_bytes
 
 load_dotenv()
@@ -536,14 +536,22 @@ def session_status(session_id: str):
     user = store.get_user(session.tenant_id, session.external_user_id)
     enrolled = bool(user and user.voice_embedding)
 
-    # Both enrollment and verification use the same anti-TTS instruction phrases.
-    # This ensures the voice embedding is built from the same kind of speech
-    # the user will produce during verification.
-    challenge = generate_verification_phrase()
-    phrase = challenge['instruction']
-    instruction = challenge['instruction']
-    expected_behavior = challenge['expected_behavior']
-    phrase_type = 'verification' if enrolled else 'enrollment'
+    if enrolled:
+        # Verification: single anti-TTS instruction phrase
+        challenge = generate_verification_phrase()
+        phrase = challenge['instruction']
+        instruction = challenge['instruction']
+        expected_behavior = challenge['expected_behavior']
+        phrase_type = 'verification'
+    else:
+        # Enrollment: 5 instruction phrases for a richer voice baseline.
+        # This gives Resemblyzer more varied speech to build a robust
+        # embedding, and uses the same kind of speech as verification.
+        challenge = generate_enrollment_phrases(5)
+        phrase = challenge['instruction']
+        instruction = challenge['instruction']
+        expected_behavior = challenge['expected_behavior']
+        phrase_type = 'enrollment'
 
     log.info(f"   external_user_id: {session.external_user_id}")
     log.info(f"   return_url:       {session.return_url}")
@@ -689,7 +697,22 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
         log.info(f"      match:       {'YES ✅' if layer1['match'] else 'NO ❌'}")
         log.info(f"      confidence:  {layer1['confidence']:.4f}")
 
+        # Short-circuit: if Layer 1 already failed, skip the Gemini call
+        if not layer1["match"]:
+            log.info("   ──────────────────────────────────────")
+            log.info(f"   🔴 VERDICT: FAILED — speaker mismatch (sim={layer1['similarity']:.4f})")
+            log.info("   ⏭️ Skipping Layer 2 (Gemini) — no point if voice doesn't match")
+            log.info("🔵" + "="*53)
+            return SessionVerifyResponse(
+                status="failed",
+                message="Verification failed — voice did not match enrolled profile.",
+                confidence_score=layer1["confidence"],
+                similarity=layer1["similarity"],
+                reasons=[f"Speaker mismatch (similarity: {layer1['similarity']:.2f})"],
+            )
+
         # ── Layer 2 — Human Comprehension via Gemini ──
+        # Only runs if Layer 1 passed (voice matches enrolled profile)
         # Retrieve the SAME instruction that was shown to the user in session_status
         log.info("   ──────────────────────────────────────")
         log.info("   🧠 LAYER 2: Human Comprehension (Gemini)")
@@ -714,18 +737,12 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
             log.warning(f"      ⚠️  Comprehension skipped: {layer2.get('reason', 'unknown')}")
 
         # ── Decision Engine ──
+        # (Layer 1 already passed if we got here)
         log.info("   ──────────────────────────────────────")
-        log.info("   🧠 DECISION ENGINE (2-layer)")
+        log.info("   🧠 DECISION ENGINE")
+        log.info(f"      ✅ PASS: speaker match (sim={layer1['similarity']:.4f})")
         reasons: list[str] = []
         failed = False
-
-        # Layer 1 check
-        if not layer1["match"]:
-            failed = True
-            reasons.append(f"Speaker mismatch (similarity: {layer1['similarity']:.2f})")
-            log.info(f"      ❌ FAIL: speaker mismatch (sim={layer1['similarity']:.4f} < threshold)")
-        else:
-            log.info(f"      ✅ PASS: speaker match (sim={layer1['similarity']:.4f})")
 
         # Layer 2 check (skip if Gemini key not configured)
         if not layer2.get('skipped'):
