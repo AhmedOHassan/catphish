@@ -7,16 +7,7 @@ function SuccessPage() {
   const result = location.state?.result || {};
   const isEnrollment = location.state?.enrollment || false;
 
-  useEffect(() => {
-    // Auto-redirect after 3 seconds if return URL exists
-    const returnUrl = localStorage.getItem('catphish_return_url');
-    if (returnUrl) {
-      const timer = setTimeout(() => {
-        handleReturnToApp();
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+
 
   const handleReturnToApp = () => {
     const returnUrl = localStorage.getItem('catphish_return_url') || 'http://localhost:3000/dashboard';
@@ -90,18 +81,7 @@ function SuccessPage() {
           >
             {localStorage.getItem('catphish_return_url') ? 'Continue to Application' : 'Continue'}
           </button>
-          
-          <button 
-            onClick={handleNewVerification}
-            style={styles.secondaryButton}
-          >
-            Start New Verification
-          </button>
         </div>
-
-        {localStorage.getItem('catphish_return_url') && (
-          <p style={styles.autoRedirect}>Automatically redirecting in 2 seconds...</p>
-        )}
 
         <div style={styles.infoBox}>
           <p style={styles.infoText}>
