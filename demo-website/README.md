@@ -37,7 +37,7 @@ If you just want to see the UI without voice verification:
 
 3. Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-**Note:** Voice verification will fail if backend is not running. You'll see an error message with instructions.
+**Note:** Without the backend running, you can still explore the UI, sign up, and login. However, voice verification will fail with an informative error message explaining what services need to be started.
 
 ### Full Setup (With Voice Verification)
 See the main [README.md](../README.md) for instructions on running all services.
@@ -54,7 +54,7 @@ See the main [README.md](../README.md) for instructions on running all services.
 ## Architecture
 
 ```
-demo-website (port 3000)
+demo-website (port 3000 with --port 3000, default 5173)
     ↓ POST /v1/verification-sessions
 Catphish API (port 8000)
     ↓ Returns session_id
@@ -62,3 +62,5 @@ demo-website redirects to
     ↓
 catphish-api (port 3001) with ?session_id=vs_xxx
 ```
+
+**Note:** The full demo setup uses port 3000 for consistency. When running standalone with `npm run dev`, it defaults to port 5173.
