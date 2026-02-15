@@ -18,6 +18,9 @@ ENV/
 # Test audio (optional - uncomment if you don't want to commit test audio)
 # test_audio/
 
+# Models (downloaded during setup)
+models/
+
 # IDE
 .vscode/
 .idea/

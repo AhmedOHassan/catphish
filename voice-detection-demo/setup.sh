@@ -49,11 +49,14 @@ fi
 echo ""
 
 # Step 4: Download sample audio files
-echo "Step 4/6: Downloading sample audio files..."
+echo "Step 4/6: Checking sample audio files..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 if [ -f "download_samples.py" ]; then
-    python3 download_samples.py
-    echo "✅ Sample audio downloaded"
+    if python3 download_samples.py; then
+        echo "✅ Sample audio check completed"
+    else
+        echo "⚠️  Sample audio check completed with warnings"
+    fi
 else
     echo "⚠️  download_samples.py not found"
     echo "   Create test_audio directories manually and add .wav files"
@@ -64,15 +67,18 @@ echo ""
 # Step 5: Setup AASIST model (Layer 3 AI Detection)
 echo "Step 5/6: Setting up AASIST model..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-mkdir -p models/aasist/models/weights
 
 if [ ! -d "models/aasist/.git" ]; then
     echo "Cloning AASIST repository..."
+    mkdir -p models
     git clone https://github.com/clovaai/aasist.git models/aasist
     echo "✅ AASIST repository cloned"
 else
     echo "✅ AASIST repository exists"
 fi
+
+# Ensure weights directory exists
+mkdir -p models/aasist/models/weights
 
 if [ -f "models/aasist/models/weights/AASIST.pth" ]; then
     echo "✅ AASIST weights found ($(du -h models/aasist/models/weights/AASIST.pth | cut -f1))"
