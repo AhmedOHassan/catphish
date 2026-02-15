@@ -88,9 +88,20 @@ def _detect_with_aasist(audio_path: str) -> dict:
         from pathlib import Path as P
         
         # Add voice-detection-demo to path if needed
-        demo_dir = P(__file__).parent.parent / "voice-detection-demo"
-        if demo_dir.exists() and str(demo_dir) not in sys.path:
+        # Navigate from catphish-api/server/voice to repository root
+        demo_dir = P(__file__).parent.parent.parent.parent / "voice-detection-demo"
+        if not demo_dir.exists():
+            # voice-detection-demo directory not found
+            return None
+            
+        if str(demo_dir) not in sys.path:
             sys.path.insert(0, str(demo_dir))
+        
+        # Check if AASIST model files exist
+        models_dir = demo_dir / "models" / "aasist"
+        if not models_dir.exists():
+            # AASIST model not set up - need to run setup script
+            return None
         
         from aasist_inference import AASISTDetector
         
@@ -103,6 +114,7 @@ def _detect_with_aasist(audio_path: str) -> dict:
             'method': 'AASIST'
         }
     except Exception:
+        # AASIST unavailable - will use fallback
         return None
 
 
@@ -135,5 +147,5 @@ def _detect_with_heuristic(audio_path: str) -> dict:
         'ai_probability': ai_score,
         'confidence': confidence,
         'method': 'spectral_flatness_heuristic',
-        'warning': 'Using fallback heuristic - accuracy limited without AASIST'
+        'warning': 'Using fallback heuristic - accuracy limited without AASIST. To enable AASIST: run voice-detection-demo/setup.sh'
     }
