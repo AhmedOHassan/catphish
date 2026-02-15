@@ -536,18 +536,14 @@ def session_status(session_id: str):
     user = store.get_user(session.tenant_id, session.external_user_id)
     enrolled = bool(user and user.voice_embedding)
 
-    # Enrollment → Stella phrase (all phonemes).  Verification → anti-TTS instruction.
-    if enrolled:
-        challenge = generate_verification_phrase()
-        phrase = challenge['instruction']
-        instruction = challenge['instruction']
-        expected_behavior = challenge['expected_behavior']
-        phrase_type = 'verification'
-    else:
-        phrase = get_enrollment_phrase()
-        instruction = phrase
-        expected_behavior = 'The speaker should read the Stella passage clearly.'
-        phrase_type = 'enrollment'
+    # Both enrollment and verification use the same anti-TTS instruction phrases.
+    # This ensures the voice embedding is built from the same kind of speech
+    # the user will produce during verification.
+    challenge = generate_verification_phrase()
+    phrase = challenge['instruction']
+    instruction = challenge['instruction']
+    expected_behavior = challenge['expected_behavior']
+    phrase_type = 'verification' if enrolled else 'enrollment'
 
     log.info(f"   external_user_id: {session.external_user_id}")
     log.info(f"   return_url:       {session.return_url}")
