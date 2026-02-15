@@ -72,12 +72,21 @@ function FailurePage() {
           {result.message || errorMessage || "We couldn't verify your voice. This could be due to several reasons:"}
         </p>
 
-        <div style={styles.reasonsBox}>
-          <ul style={styles.reasonsList}>
-            {displayReasons.map((reason, i) => (
-              <li key={i} style={styles.reasonItem}>{reason}</li>
-            ))}
-          </ul>
+        <div style={styles.detailsBox}>
+          <div style={styles.detailRow}>
+            <span style={styles.detailLabel}>Status:</span>
+            <span style={styles.detailValue}>❌ {result.status || 'Failed'}</span>
+          </div>
+          <div style={styles.detailRow}>
+            <span style={styles.detailLabel}>Timestamp:</span>
+            <span style={styles.detailValue}>{new Date().toLocaleString()}</span>
+          </div>
+          {result.similarity != null && (
+            <div style={styles.detailRow}>
+              <span style={styles.detailLabel}>Voice Similarity:</span>
+              <span style={styles.detailValue}>{(result.similarity * 100).toFixed(1)}%</span>
+            </div>
+          )}
         </div>
 
         <div style={styles.buttonContainer}>
