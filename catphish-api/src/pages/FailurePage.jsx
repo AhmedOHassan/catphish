@@ -80,23 +80,6 @@ function FailurePage() {
           </ul>
         </div>
 
-        <div style={styles.detailsBox}>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Status:</span>
-            <span style={styles.detailValue}>❌ {result.status || 'Failed'}</span>
-          </div>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Timestamp:</span>
-            <span style={styles.detailValue}>{new Date().toLocaleString()}</span>
-          </div>
-          {result.similarity != null && (
-            <div style={styles.detailRow}>
-              <span style={styles.detailLabel}>Voice Similarity:</span>
-              <span style={styles.detailValue}>{(result.similarity * 100).toFixed(1)}%</span>
-            </div>
-          )}
-        </div>
-
         <div style={styles.buttonContainer}>
           <button 
             onClick={handleRetry}
