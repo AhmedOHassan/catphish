@@ -1,9 +1,9 @@
 #!/bin/bash
-# Quick Start Script for Phase 1-2
+# Quick Start Script - Updated for current setup
 
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║     🚀 Voice Detection Demo - Quick Start               ║"
-echo "║     Phase 1-2: Environment Setup + Enrollment           ║"
+echo "║     Updated Setup Process                               ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -13,36 +13,60 @@ if [ ! -f "enroll.py" ]; then
     exit 1
 fi
 
-echo "Step 1/4: Installing dependencies..."
+echo "Step 1/5: Installing dependencies..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 pip install -r requirements.txt
 echo ""
 
-echo "Step 2/4: Verifying installation..."
+echo "Step 2/5: Verifying installation..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 python3 -c "from resemblyzer import VoiceEncoder; print('✅ Resemblyzer installed')"
 python3 -c "import numpy; print('✅ NumPy installed')"
+python3 -c "from google import genai; print('✅ New Gemini API installed')"
 echo ""
 
-echo "Step 3/4: Downloading sample audio files..."
+echo "Step 3/5: Setting up environment..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [ ! -f ".env" ]; then
+    echo "Creating .env file from template..."
+    cp .env.example .env
+    echo "⚠️  Please edit .env and add your GEMINI_API_KEY"
+    echo "   Get key from: https://aistudio.google.com/app/apikey"
+else
+    echo "✅ .env file already exists"
+fi
+echo ""
+
+echo "Step 4/5: Downloading sample audio files..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 python3 download_samples.py
 echo ""
 
-echo "Step 4/4: Creating voice profile..."
+echo "Step 5/5: Creating demo voice profile..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-python3 enroll.py test_audio/enrollment/*.wav -o demo_profile.json
+if python3 enroll.py test_audio/enrollment/*.wav -o demo_profile.json 2>&1; then
+    echo "✅ Profile created successfully"
+else
+    echo "⚠️  Profile creation failed - this may be a timeout issue"
+    echo "   You can try again with: python enroll.py test_audio/enrollment/*.wav -o demo_profile.json"
+fi
 echo ""
 
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║         ✅ SETUP COMPLETE!                              ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "📊 Files created:"
-echo "   - demo_profile.json (voice profile)"
-echo "   - test_audio/enrollment/*.wav (3 sample files)"
+echo "📊 Status:"
+echo "   - Dependencies: Installed"
+echo "   - Test audio: Downloaded"
+echo "   - Profile: Check above for status"
 echo ""
-echo "🧪 Run tests:"
-echo "   ./tests/test_phase1-2.sh"
+echo "🧪 Next steps:"
+echo "   1. Validate setup:  python validate_setup.py"
+echo "   2. Run demo:        python demo.py"
+echo "   3. Run tests:       ./tests/test_complete.sh"
 echo ""
-echo "📖 See README.md for next steps"
+echo "📖 Documentation:"
+echo "   - README.md         - Main documentation"
+echo "   - USAGE_GUIDE.md    - Detailed usage guide"
+echo "   - CHEATSHEET.sh     - Command reference"
