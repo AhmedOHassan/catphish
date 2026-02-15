@@ -1,6 +1,6 @@
 # Catphish: Multi-Layer Voice Verification & Anti-Deepfake System
 
-Catphish is a proof-of-concept platform for **voice-based user authentication and anti-deepfake detection**, including demo web apps, API backend, and a 4-layer verification system to prevent AI-generated audio attacks.
+Catphish is a voice-based identity verification API designed to protect login flows from AI voice cloning attacks and social engineering. It will serve as an additional layer of security for organizations that manage sensitive and personally identifiable data.
 
 ![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=fff)
