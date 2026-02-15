@@ -1,33 +1,29 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function SuccessPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const result = location.state?.result || {};
+  const isEnrollment = location.state?.enrollment || false;
 
   useEffect(() => {
-    // Auto-redirect after 2 seconds if return URL exists
+    // Auto-redirect after 3 seconds if return URL exists
     const returnUrl = localStorage.getItem('catphish_return_url');
     if (returnUrl) {
       const timer = setTimeout(() => {
         handleReturnToApp();
-      }, 2000);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, []);
 
   const handleReturnToApp = () => {
-    // Get return URL from localStorage
     const returnUrl = localStorage.getItem('catphish_return_url') || 'http://localhost:3000/dashboard';
-    const sessionId = `session_${Date.now()}`;
-    
-    // Clean up
     localStorage.removeItem('catphish_return_url');
-    
-    // Redirect back to parent app with success status
+
     const url = new URL(returnUrl);
     url.searchParams.set('verification_status', 'success');
-    url.searchParams.set('session_id', sessionId);
-    
     window.location.href = url.toString();
   };
 
@@ -53,10 +49,14 @@ function SuccessPage() {
           <div style={styles.successIcon}>✓</div>
         </div>
         
-        <h1 style={styles.title}>Voice Verified!</h1>
+        <h1 style={styles.title}>
+          {isEnrollment ? 'Voice Enrolled!' : 'Voice Verified!'}
+        </h1>
         
         <p style={styles.message}>
-          Your voice has been successfully verified. Access granted.
+          {isEnrollment
+            ? 'Your voice has been enrolled successfully. Your account is now protected.'
+            : 'Your voice has been successfully verified. Access granted.'}
         </p>
 
         <div style={styles.detailsBox}>

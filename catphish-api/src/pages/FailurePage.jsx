@@ -1,8 +1,22 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function FailurePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const result = location.state?.result || {};
+  const errorMessage = location.state?.error || '';
+
+  // Build dynamic reasons from the backend response
+  const backendReasons = result.reasons || [];
+  const displayReasons = backendReasons.length > 0
+    ? backendReasons
+    : [
+        'Background noise interfering with recording',
+        'Voice doesn\'t match stored biometric',
+        'Poor audio quality or microphone issues',
+        'Incorrect phrase spoken',
+      ];
 
   const handleRetry = () => {
     // Go back to verification page to try again
@@ -49,31 +63,38 @@ function FailurePage() {
         <h1 style={styles.title}>Verification Failed</h1>
         
         <p style={styles.message}>
-          We couldn't verify your voice. This could be due to several reasons:
+          {result.message || errorMessage || "We couldn't verify your voice. This could be due to several reasons:"}
         </p>
 
         <div style={styles.reasonsBox}>
           <ul style={styles.reasonsList}>
-            <li style={styles.reasonItem}>Background noise interfering with recording</li>
-            <li style={styles.reasonItem}>Voice doesn't match stored biometric</li>
-            <li style={styles.reasonItem}>Poor audio quality or microphone issues</li>
-            <li style={styles.reasonItem}>Incorrect phrase spoken</li>
+            {displayReasons.map((reason, i) => (
+              <li key={i} style={styles.reasonItem}>{reason}</li>
+            ))}
           </ul>
         </div>
 
         <div style={styles.detailsBox}>
           <div style={styles.detailRow}>
             <span style={styles.detailLabel}>Status:</span>
-            <span style={styles.detailValue}>❌ Failed</span>
+            <span style={styles.detailValue}>❌ {result.status || 'Failed'}</span>
           </div>
           <div style={styles.detailRow}>
             <span style={styles.detailLabel}>Timestamp:</span>
             <span style={styles.detailValue}>{new Date().toLocaleString()}</span>
           </div>
-          <div style={styles.detailRow}>
-            <span style={styles.detailLabel}>Error Code:</span>
-            <span style={styles.detailValue}>401 - Unauthorized</span>
-          </div>
+          {result.ai_probability != null && (
+            <div style={styles.detailRow}>
+              <span style={styles.detailLabel}>AI Probability:</span>
+              <span style={styles.detailValue}>{(result.ai_probability * 100).toFixed(1)}%</span>
+            </div>
+          )}
+          {result.similarity != null && (
+            <div style={styles.detailRow}>
+              <span style={styles.detailLabel}>Voice Similarity:</span>
+              <span style={styles.detailValue}>{(result.similarity * 100).toFixed(1)}%</span>
+            </div>
+          )}
         </div>
 
         <div style={styles.buttonContainer}>
