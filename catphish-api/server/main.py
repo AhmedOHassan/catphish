@@ -555,6 +555,14 @@ def session_status(session_id: str):
     if enrolled:
         emb_preview = str(user.voice_embedding)[:80] + "..." if user and user.voice_embedding else "N/A"
         log.info(f"   stored embedding: {emb_preview}")
+    # Store the instruction in the session so session_verify uses the SAME phrase
+    session_key = store.k_verification_session(session_id)
+    store.r.hset(session_key, mapping={
+        'challenge_instruction': instruction,
+        'challenge_expected_behavior': expected_behavior,
+        'challenge_phrase_type': phrase_type,
+    })
+
     log.info(f"   phrase_type:      {phrase_type}")
     log.info(f"   phrase:           \"{phrase}\"")
     log.info("━"*55)
@@ -686,15 +694,13 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
         log.info(f"      confidence:  {layer1['confidence']:.4f}")
 
         # ── Layer 2 — Human Comprehension via Gemini ──
-        # Generate the same kind of challenge phrase the frontend showed
-        # (We rely on the session_status having provided the phrase to the user)
+        # Retrieve the SAME instruction that was shown to the user in session_status
         log.info("   ──────────────────────────────────────")
         log.info("   🧠 LAYER 2: Human Comprehension (Gemini)")
-        # Generate a fresh challenge for comprehension check context
-        challenge = generate_verification_phrase()
-        instruction = challenge['instruction']
-        expected_behavior = challenge['expected_behavior']
-        log.info(f"      instruction: {instruction}")
+        session_key = store.k_verification_session(session_id)
+        instruction = store.r.hget(session_key, 'challenge_instruction') or ''
+        expected_behavior = store.r.hget(session_key, 'challenge_expected_behavior') or ''
+        log.info(f"      instruction (from session): {instruction}")
 
         layer2 = comprehension_check(
             audio_data=audio_bytes,
