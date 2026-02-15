@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 
 const tabs = [
   { id: 'product', label: 'Product', path: '/' },
-  { id: 'documentation', label: 'Documentation', path: '/documentation' },
+  { id: 'documentation', label: 'API Documentation', path: '/documentation' },
   { id: 'team', label: 'Team', path: '/team' },
   { id: 'privacy', label: 'Privacy Policy', path: '/privacy' },
 ]

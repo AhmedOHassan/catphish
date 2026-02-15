@@ -38,7 +38,7 @@ function Hero() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay: 0.7 }}
       >
-        <button className="cta-button">Get Started</button>
+        <a href="/documentation" className="cta-button">Get Started</a>
         <a 
           href="https://github.com/AhmedOHassan/catphish" 
           target="_blank" 

@@ -229,6 +229,7 @@ main {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  text-decoration: none;
 }
 
 .cta-button:hover {
@@ -647,5 +648,237 @@ main {
 
   .privacy-card {
     min-height: 320px;
+  }
+}
+
+/* API Documentation Page */
+.api-docs-page {
+  min-height: 100vh;
+}
+
+.api-docs-content {
+  flex: 1;
+  padding: 8rem 3rem 3rem 3rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.api-docs-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.api-docs-title {
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  color: var(--color-white);
+  margin-bottom: 0.5rem;
+}
+
+.api-docs-subtitle {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.api-docs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.api-cards-horizontal {
+  display: flex;
+  flex-direction: row;
+  gap: 4rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  overflow-x: auto;
+  justify-content: center;
+}
+
+.api-docs-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.api-docs-column-horizontal {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.api-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.25rem;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.api-card-compact {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.api-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #c084fc;
+  margin-bottom: 1rem;
+}
+
+.api-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.api-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.api-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.api-code {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+  display: block;
+  overflow-x: auto;
+}
+
+.api-endpoints {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.api-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.api-method {
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.api-method-get {
+  background: #10b981;
+  color: white;
+}
+
+.api-method-post {
+  background: #3b82f6;
+  color: white;
+}
+
+.api-path {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.api-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.api-status {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.status-success {
+  color: #22c55e;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.status-error {
+  color: #ef4444;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.api-example-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #d8b4fe;
+  margin-bottom: 0.75rem;
+}
+
+.api-pre {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  overflow-x: auto;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre;
+}
+
+.api-note {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.api-quick-start {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.api-quick-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-white);
+  margin-bottom: 0.75rem;
+}
+
+.api-curl {
+  display: block;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+@media (max-width: 1024px) {
+  .api-docs-grid {
+    grid-template-columns: 1fr;
   }
 }
