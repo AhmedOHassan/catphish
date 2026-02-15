@@ -1,69 +1,62 @@
 #!/usr/bin/env python3
 """
 Download sample audio files for testing the voice detection system.
-Downloads sample WAV files from the Resemblyzer repository.
+NOTE: This repository already includes sample audio files in test_audio/.
+This script is provided as a placeholder for downloading additional samples.
 """
 
 import os
-import urllib.request
+import glob
 import sys
-
-# Sample audio files from Resemblyzer repository
-SAMPLE_URLS = [
-    "https://github.com/resemble-ai/Resemblyzer/raw/master/audio_data/1.wav",
-    "https://github.com/resemble-ai/Resemblyzer/raw/master/audio_data/2.wav",
-    "https://github.com/resemble-ai/Resemblyzer/raw/master/audio_data/3.wav",
-]
 
 ENROLLMENT_DIR = "test_audio/enrollment"
 
 
-def download_file(url, destination):
-    """Download a file from URL to destination."""
-    try:
-        print(f"Downloading {os.path.basename(destination)}...", end=" ", flush=True)
-        urllib.request.urlretrieve(url, destination)
-        file_size = os.path.getsize(destination)
-        print(f"✅ ({file_size:,} bytes)")
-        return True
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return False
+def check_existing_files():
+    """Check for existing audio files in the enrollment directory."""
+    wav_files = glob.glob(os.path.join(ENROLLMENT_DIR, "*.wav"))
+    return wav_files
 
 
 def main():
-    """Download sample audio files for enrollment."""
-    print("🔽 Downloading sample audio files...")
+    """Check for sample audio files."""
+    print("🔽 Checking for sample audio files...")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     
     # Ensure enrollment directory exists
     os.makedirs(ENROLLMENT_DIR, exist_ok=True)
     
-    success_count = 0
-    total_count = len(SAMPLE_URLS)
+    # Check for existing files
+    existing_files = check_existing_files()
     
-    for i, url in enumerate(SAMPLE_URLS, 1):
-        filename = f"sample_{i}.wav"
-        destination = os.path.join(ENROLLMENT_DIR, filename)
+    if existing_files:
+        print(f"✅ Found {len(existing_files)} audio file(s) in {ENROLLMENT_DIR}/:")
+        for filepath in sorted(existing_files):
+            filename = os.path.basename(filepath)
+            file_size = os.path.getsize(filepath)
+            print(f"   • {filename} ({file_size:,} bytes)")
+        print()
         
-        # Skip if file already exists
-        if os.path.exists(destination):
-            file_size = os.path.getsize(destination)
-            print(f"Skipping {filename} (already exists, {file_size:,} bytes)")
-            success_count += 1
-            continue
-        
-        if download_file(url, destination):
-            success_count += 1
-    
-    print()
-    if success_count == total_count:
-        print(f"✅ Successfully downloaded {success_count}/{total_count} files")
-        print(f"📁 Files saved to: {ENROLLMENT_DIR}/")
-        return 0
+        if len(existing_files) >= 3:
+            print("✅ You have enough files to create a voice profile!")
+            print("   Run: python enroll.py test_audio/enrollment/*.wav -o demo_profile.json")
+            return 0
+        else:
+            print(f"⚠️  Need at least 3 audio files for enrollment (found: {len(existing_files)})")
+            print("   Add more .wav files to test_audio/enrollment/")
+            return 1
     else:
-        print(f"⚠️  Downloaded {success_count}/{total_count} files")
-        print(f"   Some downloads failed, but you can continue if you have at least 3 files")
+        print(f"⚠️  No audio files found in {ENROLLMENT_DIR}/")
+        print()
+        print("To add sample audio files, you can:")
+        print("1. Record your own audio samples (3-5 files, WAV format)")
+        print("2. Use existing audio files from another source")
+        print("3. Create test recordings with:")
+        print("   • 'The quick brown fox jumps over the lazy dog'")
+        print("   • 'She sells seashells by the seashore'")
+        print("   • 'How much wood would a woodchuck chuck'")
+        print()
+        print("Save files as .wav in: test_audio/enrollment/")
         return 1
 
 
