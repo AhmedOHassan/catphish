@@ -8,7 +8,7 @@
 
 // Load environment variables
 const API_URL = import.meta.env.VITE_CATPHISH_API_URL || 'http://localhost:8000';
-const API_KEY = import.meta.env.VITE_CATPHISH_API_KEY || 'demo_key_12345';
+const API_KEY = import.meta.env.VITE_CATPHISH_API_KEY || 'demo_key_123';
 
 /**
  * Get session information by session_id

@@ -15,7 +15,7 @@ const CATPHISH_API_URL = 'http://localhost:8000';
 // Catphish API Frontend URL (running on port 3001)
 const CATPHISH_FRONTEND_URL = 'http://localhost:3001';
 // Demo tenant API key (for development)
-const DEMO_API_KEY = 'demo_key_12345';
+const DEMO_API_KEY = 'demo_key_123';
 
 /**
  * Redirects to Catphish voice verification frontend
