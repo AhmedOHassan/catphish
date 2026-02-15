@@ -19,6 +19,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 
+import logging
+
 from db.valkey_store import ValkeyStore, Tenant
 from voice.encoder import create_embedding
 from voice.verification import compare_embeddings
@@ -27,6 +29,15 @@ from voice.comprehension import comprehension_check
 from voice.audio_utils import base64_to_bytes
 
 load_dotenv()
+
+# ── Logging setup ──
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="\n🐟 %(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("catphish")
+log.setLevel(logging.DEBUG)
 
 APP_NAME = "catphish-api"
 API_VERSION = "v1"
@@ -37,7 +48,19 @@ VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
 DEFAULT_TTL_SECONDS = int(os.getenv("CHALLENGE_TTL_SECONDS", "120"))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "5"))
 
+log.info("="*60)
+log.info("  CATPHISH API STARTING UP")
+log.info(f"  Valkey: {VALKEY_HOST}:{VALKEY_PORT}")
+log.info(f"  Challenge TTL: {DEFAULT_TTL_SECONDS}s | Rate limit: {RATE_LIMIT_PER_MINUTE}/min")
+log.info("="*60)
+
 store = ValkeyStore(host=VALKEY_HOST, port=VALKEY_PORT)
+
+try:
+    pong = store.r.ping()
+    log.info(f"✅ Valkey connection: {'OK' if pong else 'FAILED'}")
+except Exception as e:
+    log.error(f"❌ Valkey connection FAILED: {e}")
 
 app = FastAPI(title=APP_NAME, version="0.2.0")
 
@@ -167,11 +190,15 @@ def now_iso() -> str:
 def require_tenant(
     x_catphish_key: Optional[str] = Header(default=None, alias="X-Catphish-Key"),
 ) -> Tenant:
+    log.debug(f"🔑 require_tenant called — key present: {bool(x_catphish_key)}")
     if not x_catphish_key:
+        log.warning("🚫 Missing X-Catphish-Key header")
         raise HTTPException(status_code=401, detail="Missing X-Catphish-Key")
     tenant = store.get_tenant_by_api_key(x_catphish_key.strip())
     if not tenant or not tenant.tenant_id:
+        log.warning(f"🚫 Invalid API key: {x_catphish_key[:8]}...")
         raise HTTPException(status_code=401, detail="Invalid tenant API key")
+    log.info(f"✅ Tenant authenticated: {tenant.tenant_id} ({tenant.name})")
     return tenant
 
 
@@ -199,14 +226,17 @@ def parse_embedding(voice_embedding: Any) -> list:
 # =====================================================================
 @app.get("/health", response_model=HealthResponse)
 def health():
+    log.info("💓 Health check requested")
     try:
         pong = store.r.ping()
+        log.info(f"💓 Valkey ping: {'PONG ✅' if pong else 'FAILED ❌'}")
         return HealthResponse(
             ok=bool(pong),
             valkey=f"{VALKEY_HOST}:{VALKEY_PORT}",
             timestamp=int(time.time()),
         )
     except Exception as e:
+        log.error(f"💀 Health check failed: {e}")
         raise HTTPException(status_code=500, detail=f"Valkey health check failed: {e}")
 
 
@@ -223,6 +253,11 @@ def create_verification_session(
     req: CreateVerificationSessionRequest,
     tenant: Tenant = Depends(require_tenant),
 ):
+    log.info("="*50)
+    log.info("📋 CREATE VERIFICATION SESSION")
+    log.info(f"   tenant:  {tenant.tenant_id}")
+    log.info(f"   user:    {req.external_user_id}")
+    log.info(f"   return:  {req.return_url}")
     session_id = "vs_" + secrets.token_hex(16)
     store.create_verification_session(
         session_id=session_id,
@@ -233,6 +268,9 @@ def create_verification_session(
     )
     frontend_url = os.getenv("CATPHISH_FRONTEND_URL", "http://localhost:3001")
     verification_url = f"{frontend_url}/verify?session_id={session_id}"
+    log.info(f"   ✅ session created: {session_id}")
+    log.info(f"   🔗 redirect URL:   {verification_url}")
+    log.info("="*50)
     return CreateVerificationSessionResponse(
         session_id=session_id,
         verification_url=verification_url,
@@ -476,9 +514,12 @@ def verify_challenge(
 
 def _resolve_session(session_id: str):
     """Look up a verification session and its associated tenant/user."""
+    log.debug(f"🔍 Resolving session: {session_id}")
     session = store.get_verification_session(session_id)
     if not session:
+        log.warning(f"❌ Session NOT found or expired: {session_id}")
         raise HTTPException(status_code=404, detail="Session not found or expired")
+    log.debug(f"   ✅ Session found → tenant={session.tenant_id}, user={session.external_user_id}")
     return session
 
 
@@ -491,10 +532,22 @@ def session_status(session_id: str):
     - Whether the user already has an enrolled voice
     - A phrase to speak
     """
+    log.info("")
+    log.info("━"*55)
+    log.info("📡 SESSION STATUS — frontend page loaded")
+    log.info(f"   session_id: {session_id}")
     session = _resolve_session(session_id)
     user = store.get_user(session.tenant_id, session.external_user_id)
     enrolled = bool(user and user.voice_embedding)
     phrase = generate_phrase()
+    log.info(f"   external_user_id: {session.external_user_id}")
+    log.info(f"   return_url:       {session.return_url}")
+    log.info(f"   enrolled:         {'YES ✅ (returning user → verify flow)' if enrolled else 'NO ❌ (new user → enrollment flow)'}")
+    if enrolled:
+        emb_preview = str(user.voice_embedding)[:80] + "..." if user and user.voice_embedding else "N/A"
+        log.info(f"   stored embedding: {emb_preview}")
+    log.info(f"   phrase:           \"{phrase}\"")
+    log.info("━"*55)
     return SessionStatusResponse(
         session_id=session_id,
         external_user_id=session.external_user_id,
@@ -510,21 +563,41 @@ def session_enroll(session_id: str, req: SessionEnrollRequest):
     First-time user: record voice → create embedding → store it.
     Called by the verification frontend when user is NOT yet enrolled.
     """
+    log.info("")
+    log.info("🟢" + "="*53)
+    log.info("🎤 ENROLLMENT — new user registering voice")
+    log.info(f"   session_id: {session_id}")
     session = _resolve_session(session_id)
+    log.info(f"   tenant:     {session.tenant_id}")
+    log.info(f"   user:       {session.external_user_id}")
+
+    audio_b64_len = len(req.audio_sample) if req.audio_sample else 0
+    log.info(f"   audio payload: {audio_b64_len} chars base64 (~{audio_b64_len * 3 // 4 // 1024} KB raw)")
 
     try:
+        log.info("   [Step 1/3] Decoding base64 → raw audio bytes...")
         audio_bytes = base64_to_bytes(req.audio_sample)
+        log.info(f"   ✅ Got {len(audio_bytes)} bytes of audio")
+
+        log.info("   [Step 2/3] Creating voice embedding (Resemblyzer)...")
         embedding = create_embedding(audio_bytes)
         embedding_list = embedding.tolist()
+        log.info(f"   ✅ Embedding created: dimension={len(embedding_list)}, first 5 values={embedding_list[:5]}")
     except Exception as e:
+        log.error(f"   ❌ ENROLLMENT FAILED during audio processing: {e}")
+        log.exception(e)
         raise HTTPException(status_code=400, detail=f"Audio processing failed: {e}")
 
+    log.info("   [Step 3/3] Storing embedding in Valkey...")
     store.upsert_user_embedding(
         tenant_id=session.tenant_id,
         external_user_id=session.external_user_id,
         voice_embedding=embedding_list,
         created_at_iso=now_iso(),
     )
+    log.info(f"   ✅ Voice profile saved for user {session.external_user_id}")
+    log.info("🟢 ENROLLMENT COMPLETE — user is now enrolled")
+    log.info("🟢" + "="*53)
 
     return SessionEnrollResponse(
         success=True,
@@ -539,15 +612,24 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
     Returning user: record voice → check AI + speaker match.
     Called by the verification frontend when user IS already enrolled.
     """
+    log.info("")
+    log.info("🔵" + "="*53)
+    log.info("🔐 VERIFICATION — returning user verifying voice")
+    log.info(f"   session_id: {session_id}")
     session = _resolve_session(session_id)
+    log.info(f"   tenant:     {session.tenant_id}")
+    log.info(f"   user:       {session.external_user_id}")
+
     user = store.get_user(session.tenant_id, session.external_user_id)
 
     if not user or not user.voice_embedding:
+        log.warning("   ❌ No voice profile found — user never enrolled!")
         return SessionVerifyResponse(
             status="failed",
             message="No voice profile found. Please enroll first.",
             reasons=["user_not_enrolled"],
         )
+    log.info("   ✅ Voice profile found in Valkey")
 
     # Rate limit
     allowed, count, ttl = store.check_rate_limit(
@@ -556,37 +638,71 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
         limit=RATE_LIMIT_PER_MINUTE,
         window_seconds=60,
     )
+    log.info(f"   Rate limit: {count}/{RATE_LIMIT_PER_MINUTE} attempts (window TTL: {ttl}s) — {'ALLOWED ✅' if allowed else 'BLOCKED ❌'}")
     if not allowed:
+        log.warning(f"   🚫 RATE LIMITED — user exceeded {RATE_LIMIT_PER_MINUTE} attempts")
         return SessionVerifyResponse(
             status="failed",
             message=f"Too many attempts. Try again in {ttl} seconds.",
             reasons=["rate_limited"],
         )
 
-    try:
-        audio_bytes = base64_to_bytes(req.audio_sample)
+    audio_b64_len = len(req.audio_sample) if req.audio_sample else 0
+    log.info(f"   audio payload: {audio_b64_len} chars base64 (~{audio_b64_len * 3 // 4 // 1024} KB raw)")
 
-        # Layer 1 — create embedding from test audio
+    try:
+        log.info("   ──────────────────────────────────────")
+        log.info("   [Step 1/3] Decoding base64 → raw audio bytes...")
+        audio_bytes = base64_to_bytes(req.audio_sample)
+        log.info(f"   ✅ Got {len(audio_bytes)} bytes of audio")
+
+        log.info("   [Step 2/3] Creating embedding from test audio (Resemblyzer)...")
         test_embedding = create_embedding(audio_bytes)
+        log.info(f"   ✅ Test embedding: dim={len(test_embedding)}, first 3={test_embedding[:3].tolist()}")
+
         enrolled_embedding = parse_embedding(user.voice_embedding)
+        log.info(f"   📦 Enrolled embedding: dim={len(enrolled_embedding)}, first 3={enrolled_embedding[:3]}")
 
         # Layer 2 — speaker similarity
+        log.info("   ──────────────────────────────────────")
+        log.info("   🔊 LAYER 2: Speaker Similarity (cosine)")
         layer2 = compare_embeddings(enrolled_embedding, test_embedding)
+        log.info(f"      similarity:  {layer2['similarity']:.4f}")
+        log.info(f"      threshold:   {layer2['threshold']}")
+        log.info(f"      match:       {'YES ✅' if layer2['match'] else 'NO ❌'}")
+        log.info(f"      confidence:  {layer2['confidence']:.4f}")
 
         # Layer 3 — AI detection
+        log.info("   ──────────────────────────────────────")
+        log.info("   🤖 LAYER 3: AI Voice Detection")
         layer3 = detect_ai(audio_bytes)
+        log.info(f"      method:         {layer3.get('method', 'unknown')}")
+        log.info(f"      ai_probability: {layer3['ai_probability']:.4f}")
+        log.info(f"      threshold:      {layer3.get('threshold', 'N/A')}")
+        log.info(f"      is_ai:          {'YES 🚨' if layer3['is_ai'] else 'NO ✅ (human)'}")
+        log.info(f"      confidence:     {layer3.get('confidence', 'N/A')}")
+        if layer3.get('warning'):
+            log.warning(f"      ⚠️  {layer3['warning']}")
 
-        # Diagnostics
+        # Decision
+        log.info("   ──────────────────────────────────────")
+        log.info("   🧠 DECISION ENGINE")
         reasons: list[str] = []
         failed = False
 
         if not layer2["match"]:
             failed = True
             reasons.append(f"Speaker mismatch (similarity: {layer2['similarity']:.2f})")
+            log.info(f"      ❌ FAIL: speaker mismatch (sim={layer2['similarity']:.4f} < threshold)")
+        else:
+            log.info(f"      ✅ PASS: speaker match (sim={layer2['similarity']:.4f})")
 
         if layer3["is_ai"]:
             failed = True
             reasons.append(f"AI voice detected (probability: {layer3['ai_probability']:.2f})")
+            log.info(f"      ❌ FAIL: AI detected (prob={layer3['ai_probability']:.4f})")
+        else:
+            log.info(f"      ✅ PASS: human voice (ai_prob={layer3['ai_probability']:.4f})")
 
         confidences = [layer2["confidence"]]
         if layer3.get("confidence") is not None:
@@ -594,8 +710,12 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
 
         import numpy as np
         overall = float(np.mean(confidences)) if confidences else 0.0
+        log.info(f"      overall confidence: {overall:.4f}")
 
+        log.info("   ──────────────────────────────────────")
         if failed:
+            log.info(f"   🔴 VERDICT: FAILED — {reasons}")
+            log.info("🔵" + "="*53)
             return SessionVerifyResponse(
                 status="failed",
                 message="Verification failed — voice did not pass security checks.",
@@ -605,6 +725,11 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
                 reasons=reasons or ["verification_failed"],
             )
 
+        log.info("   ✅ VERDICT: VERIFIED — all security checks passed!")
+        log.info(f"      similarity:     {layer2['similarity']:.4f}")
+        log.info(f"      ai_probability: {layer3['ai_probability']:.4f}")
+        log.info(f"      confidence:     {overall:.4f}")
+        log.info("🔵" + "="*53)
         return SessionVerifyResponse(
             status="verified",
             message="Voice verified successfully!",
@@ -615,6 +740,8 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
         )
 
     except Exception as e:
+        log.error(f"   💀 VERIFICATION EXCEPTION: {e}")
+        log.exception(e)
         return SessionVerifyResponse(
             status="failed",
             message=f"Verification error: {e!s}",
