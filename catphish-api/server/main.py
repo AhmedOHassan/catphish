@@ -27,8 +27,20 @@ from voice.verification import compare_embeddings
 from voice.comprehension import comprehension_check
 from voice.phrase_generator import generate_verification_phrase, generate_enrollment_phrases, get_enrollment_phrase
 from voice.audio_utils import base64_to_bytes
+from solana_audit import log_verification_attempt
 
-load_dotenv()
+# Load .env from repo root (parent of catphish-api/server/)
+_env_candidates = [
+    Path(__file__).resolve().parent / ".env",            # catphish-api/server/.env
+    Path(__file__).resolve().parent.parent / ".env",      # catphish-api/.env
+    Path(__file__).resolve().parent.parent.parent / ".env",# repo root .env
+]
+for _env_path in _env_candidates:
+    if _env_path.exists():
+        load_dotenv(_env_path)
+        break
+else:
+    load_dotenv()  # fallback: search cwd upward
 
 # ── Logging setup ──
 logging.basicConfig(
@@ -180,6 +192,7 @@ class SessionVerifyResponse(BaseModel):
     similarity: Optional[float] = None
     comprehension: Optional[dict] = None
     reasons: Optional[List[str]] = None
+    solana_tx: Optional[dict] = None  # on-chain audit trail
 
 
 # =====================================================================
@@ -702,13 +715,24 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
             log.info("   ──────────────────────────────────────")
             log.info(f"   🔴 VERDICT: FAILED — speaker mismatch (sim={layer1['similarity']:.4f})")
             log.info("   ⏭️ Skipping Layer 2 (Gemini) — no point if voice doesn't match")
+            fail_reasons = [f"Speaker mismatch (similarity: {layer1['similarity']:.2f})"]
+            # ── Solana audit trail ──
+            sol_tx = log_verification_attempt(
+                session_id=session_id,
+                external_user_id=session.external_user_id,
+                audio_bytes=audio_bytes,
+                result="failed",
+                similarity=layer1["similarity"],
+                reasons=fail_reasons,
+            )
             log.info("🔵" + "="*53)
             return SessionVerifyResponse(
                 status="failed",
                 message="Verification failed — voice did not match enrolled profile.",
                 confidence_score=layer1["confidence"],
                 similarity=layer1["similarity"],
-                reasons=[f"Speaker mismatch (similarity: {layer1['similarity']:.2f})"],
+                reasons=fail_reasons,
+                solana_tx=sol_tx,
             )
 
         # ── Layer 2 — Human Comprehension via Gemini ──
@@ -767,6 +791,16 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
         log.info("   ──────────────────────────────────────")
         if failed:
             log.info(f"   🔴 VERDICT: FAILED — {reasons}")
+            # ── Solana audit trail ──
+            sol_tx = log_verification_attempt(
+                session_id=session_id,
+                external_user_id=session.external_user_id,
+                audio_bytes=audio_bytes,
+                result="failed",
+                similarity=layer1["similarity"],
+                comprehension_recommendation=layer2.get('recommendation'),
+                reasons=reasons or ["verification_failed"],
+            )
             log.info("🔵" + "="*53)
             return SessionVerifyResponse(
                 status="failed",
@@ -775,11 +809,22 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
                 similarity=layer1["similarity"],
                 comprehension=layer2 if not layer2.get('skipped') else None,
                 reasons=reasons or ["verification_failed"],
+                solana_tx=sol_tx,
             )
 
         log.info("   ✅ VERDICT: VERIFIED — all security checks passed!")
         log.info(f"      similarity:  {layer1['similarity']:.4f}")
         log.info(f"      confidence:  {overall:.4f}")
+        # ── Solana audit trail ──
+        sol_tx = log_verification_attempt(
+            session_id=session_id,
+            external_user_id=session.external_user_id,
+            audio_bytes=audio_bytes,
+            result="verified",
+            similarity=layer1["similarity"],
+            comprehension_recommendation=layer2.get('recommendation'),
+            reasons=["all_checks_passed"],
+        )
         log.info("🔵" + "="*53)
         return SessionVerifyResponse(
             status="verified",
@@ -788,6 +833,7 @@ def session_verify(session_id: str, req: SessionVerifyRequest):
             similarity=layer1["similarity"],
             comprehension=layer2 if not layer2.get('skipped') else None,
             reasons=["all_checks_passed"],
+            solana_tx=sol_tx,
         )
 
     except Exception as e:
