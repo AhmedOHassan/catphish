@@ -55,8 +55,22 @@ export async function redirectToVoiceVerification(external_user_id, return_url =
     window.location.href = data.verification_url;
   } catch (error) {
     console.error("❌ Error creating verification session:", error);
-    // Fallback: redirect with error
-    alert("Failed to initiate verification. Please try again.");
+    
+    // Check if this is a connection error (backend not running)
+    if (error.message.includes('fetch') || error.name === 'TypeError') {
+      const errorMsg = 
+        '⚠️ Backend API is not running!\n\n' +
+        'To use voice verification, please start the Catphish API backend:\n\n' +
+        '1. Start Valkey: docker compose up -d\n' +
+        '2. Seed data: ./scripts/seed-valkey.sh\n' +
+        '3. Start API: uvicorn api.main:app --reload --host 0.0.0.0 --port 8000\n\n' +
+        'See README.md for details.';
+      
+      console.error(errorMsg);
+      alert(errorMsg);
+    } else {
+      alert("Failed to initiate verification. Please try again.");
+    }
     throw error;
   }
 }
