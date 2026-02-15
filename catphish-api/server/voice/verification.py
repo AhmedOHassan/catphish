@@ -10,7 +10,7 @@ from typing import Union, List
 def compare_embeddings(
     enrolled_embedding: Union[np.ndarray, List[float]],
     test_embedding: Union[np.ndarray, List[float]],
-    threshold: float = 0.75
+    threshold: float = 0.89
 ) -> dict:
     """
     Compare two voice embeddings using cosine similarity.
@@ -18,7 +18,11 @@ def compare_embeddings(
     Args:
         enrolled_embedding: The enrolled speaker's embedding
         test_embedding: The test audio embedding
-        threshold: Similarity threshold for match (default 0.75)
+        threshold: Similarity threshold for match (default 0.89)
+            Resemblyzer cosine similarities:
+              - Same speaker:      ~0.88 – 0.98
+              - Different speaker:  ~0.75 – 0.87
+            0.89 is a good balance between FAR and FRR.
         
     Returns:
         dict: {
