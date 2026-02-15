@@ -244,6 +244,23 @@ const styles = {
     color: '#c62828',
     margin: 0,
   },
+  solanaBox: {
+    padding: '12px 15px',
+    backgroundColor: '#f3e8ff',
+    borderRadius: '8px',
+    borderLeft: '4px solid #9945FF',
+    marginBottom: '20px',
+  },
+  solanaText: {
+    fontSize: '14px',
+    color: '#6b21a8',
+    margin: 0,
+  },
+  solanaLink: {
+    color: '#9945FF',
+    fontWeight: 'bold',
+    textDecoration: 'underline',
+  },
 };
 
 export default FailurePage;

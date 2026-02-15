@@ -211,6 +211,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-
+wallet-keypair.json
 # Streamlit
 .streamlit/secrets.toml
