@@ -7,6 +7,10 @@ Catphish is a proof-of-concept platform for **voice-based user authentication an
 
 ---
 
+## Project Trailer
+
+[Click here to watch the trailer](product-trailer/Catphish_Trailer.mp4)
+
 ## 🏗 Project Structure
 
 ```
