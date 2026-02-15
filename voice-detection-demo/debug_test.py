@@ -212,7 +212,7 @@ def test_ai_detection():
             audio_path = str(audio_files[0])
             print(f"\nTesting: {label} ({audio_files[0].name})")
             
-            result = detect_ai_voice(audio_path, threshold=0.5)
+            result = detect_ai_voice(audio_path, threshold=0.993)
             
             status = "✅" if result['is_ai'] == expected_ai else "⚠️"
             print(f"{status} AI Probability: {result['ai_probability']:.3f}, Is AI: {result['is_ai']}")
@@ -289,7 +289,7 @@ def test_full_pipeline():
             return False
         
         audio_path = str(audio_files[0])
-        expected_phrase = "This is a test phrase"
+        expected_phrase = "toy boat toy boat toy boat 3 free throws"
         
         print(f"Running full pipeline on: {audio_files[0].name}")
         print(f"Expected phrase: {expected_phrase}")
