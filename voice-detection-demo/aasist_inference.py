@@ -22,32 +22,48 @@ except ImportError:
 class AASISTDetector:
     """Wrapper for AASIST anti-spoofing model"""
     
-    def __init__(self, model_path=None):
+    def __init__(self, model_path=None, model_type='AASIST-L'):
         """
         Initialize AASIST model
         
         Args:
-            model_path: Path to model weights (default: models/aasist/models/weights/AASIST.pth)
+            model_path: Path to model weights (default: auto-detect based on model_type)
+            model_type: 'AASIST' (full model) or 'AASIST-L' (lighter, 85K params, default)
         """
         if AASIST is None:
             raise ImportError("AASIST model not available")
         
+        # Set model path based on type
         if model_path is None:
-            model_path = AASIST_DIR / "models" / "weights" / "AASIST.pth"
+            model_path = AASIST_DIR / "models" / "weights" / f"{model_type}.pth"
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model_type = model_type
         
-        # Model configuration (from AASIST.conf)
-        # Original AASIST model - more accurate than AASIST-L
-        self.model_config = {
-            "architecture": "AASIST",
-            "nb_samp": 64600,
-            "first_conv": 128,
-            "filts": [70, [1, 32], [32, 32], [32, 64], [64, 64]],
-            "gat_dims": [64, 32],
-            "pool_ratios": [0.5, 0.7, 0.5, 0.5],
-            "temperatures": [2.0, 2.0, 100.0, 100.0]
-        }
+        # Model configuration based on type
+        if model_type == 'AASIST-L':
+            # AASIST-L: Lighter model with 85,306 parameters
+            # Better generalization, fewer false positives
+            self.model_config = {
+                "architecture": "AASIST",
+                "nb_samp": 64600,
+                "first_conv": 128,
+                "filts": [70, [1, 32], [32, 32], [32, 24], [24, 24]],
+                "gat_dims": [24, 32],
+                "pool_ratios": [0.4, 0.5, 0.7, 0.5],
+                "temperatures": [2.0, 2.0, 100.0, 100.0]
+            }
+        else:
+            # AASIST: Original full model
+            self.model_config = {
+                "architecture": "AASIST",
+                "nb_samp": 64600,
+                "first_conv": 128,
+                "filts": [70, [1, 32], [32, 32], [32, 64], [64, 64]],
+                "gat_dims": [64, 32],
+                "pool_ratios": [0.5, 0.7, 0.5, 0.5],
+                "temperatures": [2.0, 2.0, 100.0, 100.0]
+            }
         
         # Load model
         self.model = AASIST(self.model_config).to(self.device)
@@ -57,7 +73,7 @@ class AASISTDetector:
         self.model.load_state_dict(checkpoint)
         self.model.eval()
         
-        print(f"✅ AASIST model loaded on {self.device}")
+        print(f"✅ {model_type} model loaded on {self.device} (params: {sum(p.numel() for p in self.model.parameters()):,})")
     
     def predict(self, audio_path):
         """
@@ -114,7 +130,7 @@ class AASISTDetector:
             'ai_probability': float(ai_probability),
             'is_ai': is_ai,
             'confidence': float(confidence),
-            'method': 'AASIST'
+            'method': self.model_type
         }
 
 
