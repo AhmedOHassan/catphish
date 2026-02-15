@@ -156,7 +156,7 @@ def check_aasist_status():
     print("Your system is ready to use AASIST for AI voice detection!")
     print()
     print("Next steps:")
-    print("  - Test voice detection: cd voice-detection-demo && python verify.py")
+    print("  - Test voice detection: cd voice-detection-demo && python3 verify.py test_audio/legitimate/sample.wav -p demo_profile.json")
     print("  - Run API server: cd catphish-api/server && uvicorn main:app")
     print()
     return True

@@ -89,7 +89,7 @@ voice-detection-demo/
         ├── models/
         │   ├── AASIST.py          # Model architecture
         │   └── weights/
-        │       └── AASIST.pth     # Pre-trained weights (~XX MB)
+        │       └── AASIST.pth     # Pre-trained weights (~20-30 MB)
         └── ... (other AASIST files)
 ```
 
